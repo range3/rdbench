@@ -1,0 +1,54 @@
+version: "3.9"
+x-common:
+  &x-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  init: true
+  environment:
+    DOTFILES_DEFAULT_SPACK_ENV: /workspaces/rdbench/spack/envs/dev
+  volumes:
+    - ..:/workspaces/rdbench:cached
+    - spack:/home/vscode/.cache/spack
+    - dot-spack:/home/vscode/.spack
+  networks:
+    dev_cpp_net:
+  cap_add:
+    - SYS_PTRACE
+  security_opt:
+    - seccomp:unconfined
+  privileged: true
+  command: >
+    bash -c "sudo service ssh restart && sleep infinity"
+  extra_hosts:
+    - d1:172.33.0.2
+    - d2:172.33.0.3
+
+services:
+  dev1:
+    <<: *x-common
+    hostname: d1
+    networks:
+      dev_cpp_net:
+        ipv4_address: 172.33.0.2
+  dev2:
+    <<: *x-common
+    hostname: d2
+    networks:
+      dev_cpp_net:
+        ipv4_address: 172.33.0.3
+
+networks:
+  dev_cpp_net:
+    name: dev_cpp_net
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.33.0.0/16
+
+volumes:
+  spack:
+    external: true
+  dot-spack:
+    external: true

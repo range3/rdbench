@@ -1,0 +1,16 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.234.0/containers/cpp
+{
+  "name": "C++",
+  "dockerComposeFile": ["./docker-compose.yaml"],
+  "service": "dev1",
+  "workspaceFolder": "/workspaces/rdbench",
+  "settings": {},
+  "extensions": [
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools"
+  ],
+  "remoteUser": "vscode",
+  "postCreateCommand": "sudo apt update && sudo chown -R vscode: /home/vscode/.spack && sudo chown vscode: /home/vscode/.cache/spack",
+  "postStartCommand": "sudo service ssh restart"
+}
