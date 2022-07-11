@@ -3,19 +3,6 @@ FROM range3/dev-cpp:master
 
 USER root
 RUN \
-  # Common packages
-  export DEBIAN_FRONTEND=noninteractive \
-  && apt-get update \
-  && apt-get -y install --no-install-recommends \
-    libssl-dev \
-    perl \
-    python3 \
-  # Clean up
-  && apt-get autoremove -y \
-  && apt-get clean -y \
-  && rm -rf /var/lib/apt/lists/*
-
-RUN \
   # sshd
   export DEBIAN_FRONTEND=noninteractive \
   && apt-get update \
@@ -45,6 +32,9 @@ RUN \
   export DEBIAN_FRONTEND=noninteractive \
   && apt-get update \
   && apt-get -y install --no-install-recommends \
+    libssl-dev \
+    perl \
+    python3 \
     libopenmpi-dev \
   # Clean up
   && apt-get autoremove -y \
