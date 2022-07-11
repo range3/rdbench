@@ -10,7 +10,7 @@ env:
 
 jobs:
   build:
-    name: Build and publish documentation
+    name: Build and publish docs
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
