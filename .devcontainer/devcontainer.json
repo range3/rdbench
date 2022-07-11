@@ -11,6 +11,6 @@
     "ms-vscode.cmake-tools"
   ],
   "remoteUser": "vscode",
-  "postCreateCommand": "sudo apt update && sudo chown -R vscode: /home/vscode/.spack && sudo chown vscode: /home/vscode/.cache/spack",
+  "postCreateCommand": "sudo apt update",
   "postStartCommand": "sudo service ssh restart"
 }
