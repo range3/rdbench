@@ -54,6 +54,15 @@ CPMAddPackage(
   EXCLUDE_FROM_ALL YES
 )
 
+CPMAddPackage(
+  NAME nlohmann_json
+  VERSION 3.9.1
+  GITHUB_REPOSITORY nlohmann/json
+  OPTIONS 
+    "JSON_BuildTests OFF"
+  EXCLUDE_FROM_ALL YES
+)
+
 # ---- Other dependencies ----
 find_package(MPI REQUIRED)
 
@@ -61,17 +70,25 @@ find_package(MPI REQUIRED)
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.hpp")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.cpp")
 
 # ---- Create executable ----
+# rdbench
 add_executable(${PROJECT_NAME} ${headers} ${sources})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench")
-
-# being a cross-platform target, we enforce standards conformance on MSVC
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-
-# Link dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt cxxopts MPI::MPI_CXX)
-
+target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
 install(TARGETS ${PROJECT_NAME} DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+# rdbench_seq
+add_executable(${PROJECT_NAME}_seq "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench_seq/main.cpp")
+set_target_properties(${PROJECT_NAME}_seq PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench_seq")
+target_compile_options(${PROJECT_NAME}_seq PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+target_link_libraries(${PROJECT_NAME}_seq PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
+
+# rdbench_int
+add_executable(${PROJECT_NAME}_int "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench_int/main.cpp")
+set_target_properties(${PROJECT_NAME}_int PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench_int")
+target_compile_options(${PROJECT_NAME}_int PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+target_link_libraries(${PROJECT_NAME}_int PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
