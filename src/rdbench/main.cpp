@@ -1,6 +1,7 @@
 #include <fmt/core.h>
 #include <mpi.h>
 
+#include <chrono>
 #include <cstdio>
 #include <cxxopts.hpp>
 #include <fstream>
@@ -8,7 +9,10 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
+#include <string>
 #include <vector>
+
+#include "stopwatch.hpp"
 
 using json = nlohmann::json;
 
@@ -37,6 +41,7 @@ struct RdbenchInfo {
   std::string output_prefix;
   bool collective;
   bool view;
+  bool nosync;
   MPI_Datatype filetype = MPI_DATATYPE_NULL;
   MPI_Datatype memtype = MPI_DATATYPE_NULL;
   MPI_Datatype vertical_halo_type = MPI_DATATYPE_NULL;
@@ -58,6 +63,7 @@ struct RdbenchInfo {
     info.output_prefix = parsed["output"].as<std::string>();
     info.collective = parsed.count("collective") != 0U;
     info.view = parsed.count("view") != 0U;
+    info.nosync = parsed.count("nosync") != 0U;
     int dims[2] = {parsed["ynp"].as<int>(), parsed["xnp"].as<int>()};
     MPI_Dims_create(info.nprocs, 2, dims);
     info.xnp = dims[1];
@@ -280,27 +286,67 @@ void write_file(vd &local_data, RdbenchInfo &info) {
     }
   }
 
+  if (!info.nosync) {
+    MPI_File_sync(fh);
+  }
+
   MPI_File_close(&fh);
   index += 1;
+}
+
+void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
+                  RdbenchInfo &info) {
+  size_t nfiles = 1 + (info.interval > 0 ? info.total_steps / info.interval : 0);
+  size_t file_size = info.L * info.L * sizeof(double);
+  size_t total_write_size = nfiles * file_size;
+  double calc_time_sec
+      = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(calc_time).count();
+  double write_time_sec
+      = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(write_time)
+            .count();
+
+  json rdbench_result = {
+      {"nprocs", info.nprocs},
+      {"xnp", info.xnp},
+      {"ynp", info.ynp},
+      {"L", info.L},
+      {"chunkSizeX", info.chunk_size_x},
+      {"chunkSizeY", info.chunk_size_y},
+      {"collective", info.collective},
+      {"view", info.view},
+      {"nosync", info.nosync},
+      {"steps", info.total_steps},
+      {"interval", info.interval},
+      {"fixedX", info.fixed_x},
+      {"fixedY", info.fixed_y},
+      {"nfiles", nfiles},
+      {"fileSize", file_size},
+      {"totalWriteSizeByte", total_write_size},
+      {"calcTimeSec", calc_time_sec},
+      {"writeTimeSec", write_time_sec},
+      {"writeBandwidthByte", std::stod(fmt::format("{:.2f}", total_write_size / write_time_sec))}};
+
+  std::cout << rdbench_result << std::endl;
 }
 
 int main(int argc, char *argv[]) {
   cxxopts::Options options("rdbench_int",
                            "MPI/MPI-IO benchmark based on 2d reaction-diffusion system");
   // clang-format off
-    options.add_options()
-      ("h,help", "Print usage")
-      ("xnp", "Number of processes in x-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
-      ("ynp", "Number of processes in y-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
-      ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
-      ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("./out_"))
-      ("c,collective", "writing files in collective mode of MPI-IO")
-      ("v,view", "Use MPI_File_set_view")
-      ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
-      ("i,interval", "Write the array into files every i steps", cxxopts::value<size_t>()->default_value("200"))
-      ("fixed-x", "Fixed boundary in x-axis")
-      ("fixed-y", "Fixed boundary in y-axis")
-    ;
+  options.add_options()
+    ("h,help", "Print usage")
+    ("xnp", "Number of processes in x-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
+    ("ynp", "Number of processes in y-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
+    ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
+    ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("./out_"))
+    ("c,collective", "writing files in collective mode of MPI-IO")
+    ("v,view", "Use MPI_File_set_view")
+    ("nosync", "MPI_File_sync is no longer called before closing each file.")
+    ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
+    ("i,interval", "Write the array into files every i steps", cxxopts::value<size_t>()->default_value("200"))
+    ("fixed-x", "Fixed boundary in x-axis")
+    ("fixed-y", "Fixed boundary in y-axis")
+  ;
   // clang-format on
 
   auto parsed = options.parse(argc, argv);
@@ -312,13 +358,21 @@ int main(int argc, char *argv[]) {
   int ret = 0;
   try {
     MPI_Init(&argc, &argv);
+    // default error handler for MPI-IO
+    MPI_File_set_errhandler(MPI_FILE_NULL, MPI_ERRORS_ARE_FATAL);
     RdbenchInfo info = RdbenchInfo::create(parsed);
+    Stopwatch stopwatch;
+    Stopwatch::duration time_calc(0), time_write(0);
 
     const int V = (info.chunk_size_x + 2) * (info.chunk_size_y + 2);
     vd u(V, 0.0), v(V, 0.0);
     vd u2(V, 0.0), v2(V, 0.0);
     init(u, v, info);
+
+    stopwatch.reset();
     write_file(u, info);
+    time_write += stopwatch.get_and_reset();
+
     for (int step = 1; step <= info.total_steps; step++) {
       if (step & 1) {
         sendrecv_halo(u, info);
@@ -329,8 +383,10 @@ int main(int argc, char *argv[]) {
         sendrecv_halo(v2, info);
         calc(u2, v2, u, v, info);
       }
+      time_calc += stopwatch.get_and_reset();
       if (info.interval != 0 && step % info.interval == 0) {
         write_file(step & 1 ? u : u2, info);
+        time_write += stopwatch.get_and_reset();
       }
     }
 
@@ -346,6 +402,16 @@ int main(int argc, char *argv[]) {
     }
     if (info.comm_2d != MPI_COMM_NULL) {
       MPI_Comm_free(&info.comm_2d);
+    }
+
+    int64_t tc = time_calc.count();
+    int64_t tw = time_write.count();
+    int64_t max_tc, max_tw;
+    MPI_Reduce(&tc, &max_tc, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&tw, &max_tw, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    if (info.rank == 0) {
+      print_result(Stopwatch::duration{max_tc}, Stopwatch::duration{max_tw}, info);
     }
   } catch (const std::exception &e) {
     fmt::print(stderr, "exception: {}\n", e.what());
