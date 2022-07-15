@@ -70,31 +70,16 @@ struct RdbenchInfo {
     info.ynp = dims[0];
     info.fixed_x = parsed["fixed-x"].count() != 0U;
     info.fixed_y = parsed["fixed-y"].count() != 0U;
-
-    int periods[] = {info.fixed_y ? 0 : 1, info.fixed_x ? 0 : 1};
-    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &info.comm_2d);
-    // if (info.rank == 0) {
-    //   int c[2];
-    //   int rank;
-    //   for (c[0] = 0; c[0] < dims[0]; ++c[0]) {
-    //     for (c[1] = 0; c[1] < dims[1]; ++c[1]) {
-    //       MPI_Cart_rank(info.comm_2d, c, &rank);
-    //       fmt::print("({}, {}) = rank {}\n", c[0], c[1], rank);
-    //     }
-    //   }
-    // }
-
     info.total_steps = parsed["steps"].as<size_t>();
     info.interval = parsed["interval"].as<size_t>();
     info.L = parsed["L"].as<int>();
 
+    int periods[] = {info.fixed_y ? 0 : 1, info.fixed_x ? 0 : 1};
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &info.comm_2d);
     int coords[2];
     MPI_Cart_coords(info.comm_2d, info.rank, 2, coords);
-    // fmt::print("{}: coords = ({}, {})\n", info.rank, coords[0], coords[1]);
     MPI_Cart_shift(info.comm_2d, 0, 1, &info.rank_up, &info.rank_down);
     MPI_Cart_shift(info.comm_2d, 1, 1, &info.rank_left, &info.rank_right);
-    // fmt::print("{}: neighbor = ({}, {}, {}, {})\n", info.rank, info.rank_up, info.rank_right,
-    //            info.rank_down, info.rank_left);
     info.my_grid_x = coords[1];
     info.my_grid_y = coords[0];
     info.chunk_size_x = info.L / info.xnp;
