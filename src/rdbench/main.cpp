@@ -1,11 +1,15 @@
 #include <fmt/core.h>
+#include <fmt/ranges.h>
 #include <mpi.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cxxopts.hpp>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -39,9 +43,10 @@ struct RdbenchInfo {
   int my_end_x;
   int my_end_y;
   std::string output_prefix;
-  bool collective;
-  bool view;
-  bool nosync;
+  bool collective = false;
+  bool view = false;
+  bool sync = true;
+  bool validate = true;
   MPI_Datatype filetype = MPI_DATATYPE_NULL;
   MPI_Datatype memtype = MPI_DATATYPE_NULL;
   MPI_Datatype vertical_halo_type = MPI_DATATYPE_NULL;
@@ -63,7 +68,8 @@ struct RdbenchInfo {
     info.output_prefix = parsed["output"].as<std::string>();
     info.collective = parsed.count("collective") != 0U;
     info.view = parsed.count("view") != 0U;
-    info.nosync = parsed.count("nosync") != 0U;
+    info.sync = parsed.count("nosync") == 0U;
+    info.validate = parsed.count("novalidate") == 0U;
     int dims[2] = {parsed["ynp"].as<int>(), parsed["xnp"].as<int>()};
     MPI_Dims_create(info.nprocs, 2, dims);
     info.xnp = dims[1];
@@ -232,8 +238,7 @@ void sendrecv_halo(vd &local_data, RdbenchInfo &info) {
   }
 }
 
-void write_file(vd &local_data, RdbenchInfo &info) {
-  static int index = 0;
+void write_file(vd &local_data, int index, RdbenchInfo &info) {
   std::string filename = info.output_file(index);
 
   MPI_File fh;
@@ -242,14 +247,11 @@ void write_file(vd &local_data, RdbenchInfo &info) {
                 MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN, MPI_INFO_NULL, &fh);
   MPI_File_set_atomicity(fh, false);
 
-  if (info.view) {
-    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype, "native", MPI_INFO_NULL);
-  }
-
   int (*write_func)(MPI_File, MPI_Offset, const void *, int, MPI_Datatype, MPI_Status *);
   write_func = info.collective ? MPI_File_write_at_all : MPI_File_write_at;
 
   if (info.view) {
+    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype, "native", MPI_INFO_NULL);
     int wcount;
     do {
       write_func(fh, 0, local_data.data(), 1, info.memtype, &status);
@@ -271,12 +273,77 @@ void write_file(vd &local_data, RdbenchInfo &info) {
     }
   }
 
-  if (!info.nosync) {
+  if (info.sync) {
     MPI_File_sync(fh);
   }
 
   MPI_File_close(&fh);
-  index += 1;
+}
+
+void read_file(vd &local_data, int index, RdbenchInfo &info) {
+  std::string filename = info.output_file(index);
+
+  MPI_File fh;
+  MPI_Status status;
+  MPI_File_open(MPI_COMM_WORLD, filename.c_str(), MPI_MODE_RDONLY | MPI_MODE_UNIQUE_OPEN,
+                MPI_INFO_NULL, &fh);
+  MPI_File_set_atomicity(fh, false);
+
+  int (*read_func)(MPI_File, MPI_Offset, void *, int, MPI_Datatype, MPI_Status *);
+  read_func = info.collective ? MPI_File_read_at_all : MPI_File_read_at;
+
+  if (info.view) {
+    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype, "native", MPI_INFO_NULL);
+    int rcount;
+    do {
+      read_func(fh, 0, &local_data[0], 1, info.memtype, &status);
+      MPI_Get_count(&status, info.memtype, &rcount);
+    } while (rcount != 1);
+  } else {
+    int rcount, rc;
+    for (int iy = 0; iy < info.chunk_size_y; ++iy) {
+      int i_begin_local = (iy + 1) * (info.chunk_size_x + 2) + 1;
+      int i_begin_global = (iy + info.my_begin_y) * info.L + info.my_begin_x;
+      rcount = 0;
+      do {
+        read_func(fh, (i_begin_global + rcount) * sizeof(double),
+                  &local_data[i_begin_local + rcount], info.chunk_size_x - rcount, MPI_DOUBLE,
+                  &status);
+        MPI_Get_count(&status, MPI_DOUBLE, &rc);
+        rcount += rc;
+      } while ((info.chunk_size_x - rcount) > 0);
+    }
+  }
+
+  MPI_File_close(&fh);
+}
+
+bool validate_file_io(vd &u, int index, RdbenchInfo &info) {
+  vd validate(u.size(), 0.0);
+  write_file(u, index, info);
+  read_file(validate, index, info);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (info.rank == 0) {
+    MPI_File_delete(info.output_file(index).c_str(), MPI_INFO_NULL);
+  }
+
+  const size_t stride = info.chunk_size_x + 2;
+  auto iu = u.begin() + 1 + stride;
+  auto iv = validate.begin() + 1 + stride;
+
+  for (size_t i; i < info.chunk_size_y; ++i) {
+    if (!std::equal(iu, iu + info.chunk_size_x, iv, [](double a, double b) {
+          return std::fabs(a - b) <= std::numeric_limits<double>::epsilon()
+                 || std::fabs(a - b) < std::numeric_limits<double>::min();
+        })) {
+      return false;
+    }
+    iu += stride;
+    iv += stride;
+  }
+
+  return true;
 }
 
 void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
@@ -299,7 +366,8 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
       {"chunkSizeY", info.chunk_size_y},
       {"collective", info.collective},
       {"view", info.view},
-      {"nosync", info.nosync},
+      {"sync", info.sync},
+      {"validate", info.validate},
       {"steps", info.total_steps},
       {"interval", info.interval},
       {"fixedX", info.fixed_x},
@@ -324,13 +392,14 @@ int main(int argc, char *argv[]) {
     ("ynp", "Number of processes in y-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
     ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
     ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("./out_"))
-    ("c,collective", "writing files in collective mode of MPI-IO")
+    ("c,collective", "Writing files in collective mode of MPI-IO")
     ("v,view", "Use MPI_File_set_view")
-    ("nosync", "MPI_File_sync is no longer called before closing each file.")
+    ("nosync", "MPI_File_sync is no longer called.")
     ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
     ("i,interval", "Write the array into files every i steps", cxxopts::value<size_t>()->default_value("200"))
     ("fixed-x", "Fixed boundary in x-axis")
     ("fixed-y", "Fixed boundary in y-axis")
+    ("novalidate", "Disable IO validation feature reading the data written in the file to check if it was written correctly")
   ;
   // clang-format on
 
@@ -352,13 +421,21 @@ int main(int argc, char *argv[]) {
     const int V = (info.chunk_size_x + 2) * (info.chunk_size_y + 2);
     vd u(V, 0.0), v(V, 0.0);
     vd u2(V, 0.0), v2(V, 0.0);
+    int step;
+    int file_idx = 1;
     init(u, v, info);
 
+    if (info.validate) {
+      if (!validate_file_io(u, 0, info)) {
+        throw std::runtime_error("Read validation failed");
+      }
+    }
+
     stopwatch.reset();
-    write_file(u, info);
+    write_file(u, file_idx++, info);
     time_write += stopwatch.get_and_reset();
 
-    for (int step = 1; step <= info.total_steps; step++) {
+    for (step = 1; step <= info.total_steps; step++) {
       if (step & 1) {
         sendrecv_halo(u, info);
         sendrecv_halo(v, info);
@@ -370,8 +447,14 @@ int main(int argc, char *argv[]) {
       }
       time_calc += stopwatch.get_and_reset();
       if (info.interval != 0 && step % info.interval == 0) {
-        write_file(step & 1 ? u : u2, info);
+        write_file(step & 1 ? u : u2, file_idx++, info);
         time_write += stopwatch.get_and_reset();
+      }
+    }
+
+    if (info.validate) {
+      if (!validate_file_io(u, 0, info)) {
+        throw std::runtime_error("Read validation failed");
       }
     }
 
