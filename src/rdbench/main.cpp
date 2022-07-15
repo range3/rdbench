@@ -318,15 +318,16 @@ int main(int argc, char *argv[]) {
     vd u(V, 0.0), v(V, 0.0);
     vd u2(V, 0.0), v2(V, 0.0);
     init(u, v, info);
-    for (int step = 0; step < info.total_steps; step++) {
+    write_file(u, info);
+    for (int step = 1; step <= info.total_steps; step++) {
       if (step & 1) {
-        sendrecv_halo(u2, info);
-        sendrecv_halo(v2, info);
-        calc(u2, v2, u, v, info);
-      } else {
         sendrecv_halo(u, info);
         sendrecv_halo(v, info);
         calc(u, v, u2, v2, info);
+      } else {
+        sendrecv_halo(u2, info);
+        sendrecv_halo(v2, info);
+        calc(u2, v2, u, v, info);
       }
       if (info.interval != 0 && step % info.interval == 0) {
         write_file(step & 1 ? u : u2, info);
