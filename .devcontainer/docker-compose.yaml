@@ -5,8 +5,6 @@ x-common:
     context: .
     dockerfile: Dockerfile
   init: true
-  environment:
-    DOTFILES_DEFAULT_SPACK_ENV: /workspaces/rdbench/spack/envs/dev
   volumes:
     - ..:/workspaces/rdbench:cached
     - spack:/home/vscode/.cache/spack
