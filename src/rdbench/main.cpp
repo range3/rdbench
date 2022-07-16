@@ -1,5 +1,4 @@
 #include <fmt/core.h>
-#include <fmt/ranges.h>
 #include <mpi.h>
 
 #include <algorithm>
@@ -14,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "stopwatch.hpp"
@@ -28,7 +28,28 @@ const double Dv = 0.1;
 
 typedef std::vector<double> vd;
 
+struct mpi_datatype_deleter {
+  template <typename T> void operator()(T *p) const {
+    MPI_Datatype type = p;
+    if (type != MPI_DATATYPE_NULL) {
+      MPI_Type_free(&type);
+    }
+  }
+};
+
+struct mpi_comm_deleter {
+  template <typename T> void operator()(T *p) const {
+    MPI_Comm comm = p;
+    if (comm != MPI_COMM_NULL) {
+      MPI_Comm_free(&comm);
+    }
+  }
+};
+
 struct RdbenchInfo {
+  using unique_mpi_datatype
+      = std::unique_ptr<std::remove_pointer<MPI_Datatype>::type, mpi_datatype_deleter>;
+  using unique_mpi_comm = std::unique_ptr<std::remove_pointer<MPI_Comm>::type, mpi_comm_deleter>;
   int rank;
   int nprocs;
   int xnp;
@@ -47,12 +68,12 @@ struct RdbenchInfo {
   bool view = false;
   bool sync = true;
   bool validate = true;
-  MPI_Datatype filetype = MPI_DATATYPE_NULL;
-  MPI_Datatype memtype = MPI_DATATYPE_NULL;
-  MPI_Datatype vertical_halo_type = MPI_DATATYPE_NULL;
+  unique_mpi_datatype filetype;
+  unique_mpi_datatype memtype;
+  unique_mpi_datatype vertical_halo_type;
+  unique_mpi_comm comm_2d;
   size_t total_steps;
   size_t interval;
-  MPI_Comm comm_2d = MPI_COMM_NULL;
   bool fixed_x = false;
   bool fixed_y = false;
   int rank_down;
@@ -80,12 +101,14 @@ struct RdbenchInfo {
     info.interval = parsed["interval"].as<size_t>();
     info.L = parsed["L"].as<int>();
 
+    MPI_Comm comm_2d;
     int periods[] = {info.fixed_y ? 0 : 1, info.fixed_x ? 0 : 1};
-    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &info.comm_2d);
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &comm_2d);
+    info.comm_2d = unique_mpi_comm{comm_2d};
     int coords[2];
-    MPI_Cart_coords(info.comm_2d, info.rank, 2, coords);
-    MPI_Cart_shift(info.comm_2d, 0, 1, &info.rank_up, &info.rank_down);
-    MPI_Cart_shift(info.comm_2d, 1, 1, &info.rank_left, &info.rank_right);
+    MPI_Cart_coords(info.comm_2d.get(), info.rank, 2, coords);
+    MPI_Cart_shift(info.comm_2d.get(), 0, 1, &info.rank_up, &info.rank_down);
+    MPI_Cart_shift(info.comm_2d.get(), 1, 1, &info.rank_left, &info.rank_right);
     info.my_grid_x = coords[1];
     info.my_grid_y = coords[0];
     info.chunk_size_x = info.L / info.xnp;
@@ -101,13 +124,15 @@ struct RdbenchInfo {
     info.my_end_x = info.my_begin_x + info.chunk_size_x;
     info.my_end_y = info.my_begin_y + info.chunk_size_y;
 
+    MPI_Datatype t;
     if (info.view) {
       int array_shape[] = {info.L, info.L};
       int chunk_shape[] = {info.chunk_size_y, info.chunk_size_x};
       int chunk_start[] = {info.my_begin_y, info.my_begin_x};
       MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE,
-                               &info.filetype);
-      MPI_Type_commit(&info.filetype);
+                               &t);
+      MPI_Type_commit(&t);
+      info.filetype = unique_mpi_datatype{t};
 
       array_shape[0] = info.chunk_size_y + 2;
       array_shape[1] = info.chunk_size_x + 2;
@@ -115,12 +140,13 @@ struct RdbenchInfo {
       chunk_shape[1] = info.chunk_size_x;
       chunk_start[0] = chunk_start[1] = 1;
       MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE,
-                               &info.memtype);
-      MPI_Type_commit(&info.memtype);
+                               &t);
+      MPI_Type_commit(&t);
+      info.memtype = unique_mpi_datatype{t};
     }
-    MPI_Type_vector(info.chunk_size_y, 1, info.chunk_size_x + 2, MPI_DOUBLE,
-                    &info.vertical_halo_type);
-    MPI_Type_commit(&info.vertical_halo_type);
+    MPI_Type_vector(info.chunk_size_y, 1, info.chunk_size_x + 2, MPI_DOUBLE, &t);
+    MPI_Type_commit(&t);
+    info.vertical_halo_type = unique_mpi_datatype{t};
 
     return info;
   }
@@ -207,31 +233,32 @@ void sendrecv_halo(vd &local_data, RdbenchInfo &info) {
   const static int tag[] = {100, 101, 102, 103};
   MPI_Request req[4];
   MPI_Status status[4];
+  MPI_Comm comm_2d = info.comm_2d.get();
   // up -> down
   MPI_Irecv(&local_data[info.chunk_idx(-1, 0)], info.chunk_size_x, MPI_DOUBLE, info.rank_up,
-            tag[iup], info.comm_2d, &req[iup]);
+            tag[iup], comm_2d, &req[iup]);
   // down -> up
   MPI_Irecv(&local_data[info.chunk_idx(info.chunk_size_y, 0)], info.chunk_size_x, MPI_DOUBLE,
-            info.rank_down, tag[idown], info.comm_2d, &req[idown]);
+            info.rank_down, tag[idown], comm_2d, &req[idown]);
   // left -> right
-  MPI_Irecv(&local_data[info.chunk_idx(0, -1)], 1, info.vertical_halo_type, info.rank_left,
-            tag[ileft], info.comm_2d, &req[ileft]);
+  MPI_Irecv(&local_data[info.chunk_idx(0, -1)], 1, info.vertical_halo_type.get(), info.rank_left,
+            tag[ileft], comm_2d, &req[ileft]);
   // left <- right
-  MPI_Irecv(&local_data[info.chunk_idx(0, info.chunk_size_x)], 1, info.vertical_halo_type,
-            info.rank_right, tag[iright], info.comm_2d, &req[iright]);
+  MPI_Irecv(&local_data[info.chunk_idx(0, info.chunk_size_x)], 1, info.vertical_halo_type.get(),
+            info.rank_right, tag[iright], comm_2d, &req[iright]);
 
   // up -> down
   MPI_Send(&local_data[info.chunk_idx(info.chunk_size_y - 1, 0)], info.chunk_size_x, MPI_DOUBLE,
-           info.rank_down, tag[iup], info.comm_2d);
+           info.rank_down, tag[iup], comm_2d);
   // down -> up
   MPI_Send(&local_data[info.chunk_idx(0, 0)], info.chunk_size_x, MPI_DOUBLE, info.rank_up,
-           tag[idown], info.comm_2d);
+           tag[idown], comm_2d);
   // left -> right
-  MPI_Send(&local_data[info.chunk_idx(0, info.chunk_size_x - 1)], 1, info.vertical_halo_type,
-           info.rank_right, tag[ileft], info.comm_2d);
+  MPI_Send(&local_data[info.chunk_idx(0, info.chunk_size_x - 1)], 1, info.vertical_halo_type.get(),
+           info.rank_right, tag[ileft], comm_2d);
   // left <- right
-  MPI_Send(&local_data[info.chunk_idx(0, 0)], 1, info.vertical_halo_type, info.rank_left,
-           tag[iright], info.comm_2d);
+  MPI_Send(&local_data[info.chunk_idx(0, 0)], 1, info.vertical_halo_type.get(), info.rank_left,
+           tag[iright], comm_2d);
 
   for (int i = 0; i < 4; ++i) {
     MPI_Wait(&req[i], &status[i]);
@@ -251,11 +278,11 @@ void write_file(vd &local_data, int index, RdbenchInfo &info) {
   write_func = info.collective ? MPI_File_write_at_all : MPI_File_write_at;
 
   if (info.view) {
-    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype, "native", MPI_INFO_NULL);
+    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype.get(), "native", MPI_INFO_NULL);
     int wcount;
     do {
-      write_func(fh, 0, local_data.data(), 1, info.memtype, &status);
-      MPI_Get_count(&status, info.memtype, &wcount);
+      write_func(fh, 0, local_data.data(), 1, info.memtype.get(), &status);
+      MPI_Get_count(&status, info.memtype.get(), &wcount);
     } while (wcount != 1);
   } else {
     int wcount, wc;
@@ -293,11 +320,11 @@ void read_file(vd &local_data, int index, RdbenchInfo &info) {
   read_func = info.collective ? MPI_File_read_at_all : MPI_File_read_at;
 
   if (info.view) {
-    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype, "native", MPI_INFO_NULL);
+    MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype.get(), "native", MPI_INFO_NULL);
     int rcount;
     do {
-      read_func(fh, 0, &local_data[0], 1, info.memtype, &status);
-      MPI_Get_count(&status, info.memtype, &rcount);
+      read_func(fh, 0, &local_data[0], 1, info.memtype.get(), &status);
+      MPI_Get_count(&status, info.memtype.get(), &rcount);
     } while (rcount != 1);
   } else {
     int rcount, rc;
@@ -456,20 +483,6 @@ int main(int argc, char *argv[]) {
       if (!validate_file_io(u, 0, info)) {
         throw std::runtime_error("Read validation failed");
       }
-    }
-
-    // FIXME: use RAII
-    if (info.filetype != MPI_DATATYPE_NULL) {
-      MPI_Type_free(&info.filetype);
-    }
-    if (info.memtype != MPI_DATATYPE_NULL) {
-      MPI_Type_free(&info.memtype);
-    }
-    if (info.vertical_halo_type != MPI_DATATYPE_NULL) {
-      MPI_Type_free(&info.vertical_halo_type);
-    }
-    if (info.comm_2d != MPI_COMM_NULL) {
-      MPI_Comm_free(&info.comm_2d);
     }
 
     int64_t tc = time_calc.count();
