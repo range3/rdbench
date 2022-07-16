@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 range3 ( https://github.com/range3 )
 #pragma once
 
 #include <chrono>

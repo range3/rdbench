@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 range3 ( https://github.com/range3 )
+// This file is modified from ( https://github.com/kaityo256/sevendayshpc )
+// under license CC-BY-4.0.
+// https://github.com/kaityo256/sevendayshpc/blob/main/LICENSE
+
 #include <fmt/core.h>
 #include <mpi.h>
 
