@@ -82,13 +82,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt cxxopts::cxxopts nlohmann
 install(TARGETS ${PROJECT_NAME} DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 # rdbench_seq
-add_executable(${PROJECT_NAME}_seq "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench_seq/main.cpp")
-set_target_properties(${PROJECT_NAME}_seq PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench_seq")
-target_compile_options(${PROJECT_NAME}_seq PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-target_link_libraries(${PROJECT_NAME}_seq PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
-
-# rdbench_int
-add_executable(${PROJECT_NAME}_int "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench_int/main.cpp")
-set_target_properties(${PROJECT_NAME}_int PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench_int")
-target_compile_options(${PROJECT_NAME}_int PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-target_link_libraries(${PROJECT_NAME}_int PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
+# add_executable(${PROJECT_NAME}_seq "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench_seq/main.cpp")
+# set_target_properties(${PROJECT_NAME}_seq PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench_seq")
+# target_compile_options(${PROJECT_NAME}_seq PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+# target_link_libraries(${PROJECT_NAME}_seq PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
