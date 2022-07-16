@@ -375,7 +375,7 @@ bool validate_file_io(vd &u, int index, RdbenchInfo &info) {
 
 void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
                   RdbenchInfo &info) {
-  size_t nfiles = 1 + (info.interval > 0 ? info.total_steps / info.interval : 0);
+  size_t nfiles = info.interval > 0 ? 1 + info.total_steps / info.interval : 0;
   size_t file_size = info.L * info.L * sizeof(double);
   size_t total_write_size = nfiles * file_size;
   double calc_time_sec
@@ -384,34 +384,36 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
       = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(write_time)
             .count();
 
-  json rdbench_result = {
-      {"nprocs", info.nprocs},
-      {"xnp", info.xnp},
-      {"ynp", info.ynp},
-      {"L", info.L},
-      {"chunkSizeX", info.chunk_size_x},
-      {"chunkSizeY", info.chunk_size_y},
-      {"collective", info.collective},
-      {"view", info.view},
-      {"sync", info.sync},
-      {"validate", info.validate},
-      {"steps", info.total_steps},
-      {"interval", info.interval},
-      {"fixedX", info.fixed_x},
-      {"fixedY", info.fixed_y},
-      {"nfiles", nfiles},
-      {"fileSize", file_size},
-      {"totalWriteSizeByte", total_write_size},
-      {"calcTimeSec", calc_time_sec},
-      {"writeTimeSec", write_time_sec},
-      {"writeBandwidthByte", std::stod(fmt::format("{:.2f}", total_write_size / write_time_sec))}};
+  json rdbench_result = {{"nprocs", info.nprocs},
+                         {"xnp", info.xnp},
+                         {"ynp", info.ynp},
+                         {"L", info.L},
+                         {"chunkSizeX", info.chunk_size_x},
+                         {"chunkSizeY", info.chunk_size_y},
+                         {"collective", info.collective},
+                         {"view", info.view},
+                         {"sync", info.sync},
+                         {"validate", info.validate},
+                         {"steps", info.total_steps},
+                         {"interval", info.interval},
+                         {"fixedX", info.fixed_x},
+                         {"fixedY", info.fixed_y},
+                         {"nfiles", nfiles},
+                         {"fileSize", file_size},
+                         {"totalWriteSizeByte", total_write_size},
+                         {"calcTimeSec", calc_time_sec}};
+
+  if (info.interval != 0) {
+    rdbench_result["wrieTimeSec"] = write_time_sec;
+    rdbench_result["writeBandwidthByte"]
+        = std::stod(fmt::format("{:.2f}", total_write_size / write_time_sec));
+  }
 
   std::cout << rdbench_result << std::endl;
 }
 
 int main(int argc, char *argv[]) {
-  cxxopts::Options options("rdbench_int",
-                           "MPI/MPI-IO benchmark based on 2d reaction-diffusion system");
+  cxxopts::Options options("rdbench", "MPI/MPI-IO benchmark based on 2D reaction-diffusion system");
   // clang-format off
   options.add_options()
     ("h,help", "Print usage")
@@ -423,7 +425,7 @@ int main(int argc, char *argv[]) {
     ("v,view", "Use MPI_File_set_view")
     ("nosync", "MPI_File_sync is no longer called.")
     ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
-    ("i,interval", "Write the array into files every i steps", cxxopts::value<size_t>()->default_value("200"))
+    ("i,interval", "Write the array into files every i steps (0 == disable file output)", cxxopts::value<size_t>()->default_value("200"))
     ("fixed-x", "Fixed boundary in x-axis")
     ("fixed-y", "Fixed boundary in y-axis")
     ("novalidate", "Disable IO validation feature reading the data written in the file to check if it was written correctly")
@@ -459,8 +461,10 @@ int main(int argc, char *argv[]) {
     }
 
     stopwatch.reset();
-    write_file(u, file_idx++, info);
-    time_write += stopwatch.get_and_reset();
+    if (info.interval != 0) {
+      write_file(u, file_idx++, info);
+      time_write += stopwatch.get_and_reset();
+    }
 
     for (step = 1; step <= info.total_steps; step++) {
       if (step & 1) {
