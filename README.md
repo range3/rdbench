@@ -15,6 +15,13 @@ cmake --build .
 cmake --install . --prefix /path/to/install
 ```
 
+## Spack
+```bash
+git clone https://github.com/range3/rdbench.git
+spack repo add rdbench/spack-repo
+spack install rdbench
+```
+
 # Usage
 ```bash
 mkdir -p /path/to/output_dir
