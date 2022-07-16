@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "raii_types.hpp"
 #include "stopwatch.hpp"
 
 using json = nlohmann::json;
@@ -34,28 +35,7 @@ const double Dv = 0.1;
 
 typedef std::vector<double> vd;
 
-struct mpi_datatype_deleter {
-  template <typename T> void operator()(T *p) const {
-    MPI_Datatype type = p;
-    if (type != MPI_DATATYPE_NULL) {
-      MPI_Type_free(&type);
-    }
-  }
-};
-
-struct mpi_comm_deleter {
-  template <typename T> void operator()(T *p) const {
-    MPI_Comm comm = p;
-    if (comm != MPI_COMM_NULL) {
-      MPI_Comm_free(&comm);
-    }
-  }
-};
-
 struct RdbenchInfo {
-  using unique_mpi_datatype
-      = std::unique_ptr<std::remove_pointer<MPI_Datatype>::type, mpi_datatype_deleter>;
-  using unique_mpi_comm = std::unique_ptr<std::remove_pointer<MPI_Comm>::type, mpi_comm_deleter>;
   int rank;
   int nprocs;
   int xnp;
@@ -74,10 +54,10 @@ struct RdbenchInfo {
   bool view = false;
   bool sync = true;
   bool validate = true;
-  unique_mpi_datatype filetype;
-  unique_mpi_datatype memtype;
-  unique_mpi_datatype vertical_halo_type;
-  unique_mpi_comm comm_2d;
+  Datatype filetype;
+  Datatype memtype;
+  Datatype vertical_halo_type;
+  Comm comm_2d;
   size_t total_steps;
   size_t interval;
   bool fixed_x = false;
@@ -110,7 +90,7 @@ struct RdbenchInfo {
     MPI_Comm comm_2d;
     int periods[] = {info.fixed_y ? 0 : 1, info.fixed_x ? 0 : 1};
     MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &comm_2d);
-    info.comm_2d = unique_mpi_comm{comm_2d};
+    info.comm_2d = Comm{comm_2d};
     int coords[2];
     MPI_Cart_coords(info.comm_2d.get(), info.rank, 2, coords);
     MPI_Cart_shift(info.comm_2d.get(), 0, 1, &info.rank_up, &info.rank_down);
@@ -138,7 +118,7 @@ struct RdbenchInfo {
       MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE,
                                &t);
       MPI_Type_commit(&t);
-      info.filetype = unique_mpi_datatype{t};
+      info.filetype = Datatype{t};
 
       array_shape[0] = info.chunk_size_y + 2;
       array_shape[1] = info.chunk_size_x + 2;
@@ -148,11 +128,11 @@ struct RdbenchInfo {
       MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE,
                                &t);
       MPI_Type_commit(&t);
-      info.memtype = unique_mpi_datatype{t};
+      info.memtype = Datatype{t};
     }
     MPI_Type_vector(info.chunk_size_y, 1, info.chunk_size_x + 2, MPI_DOUBLE, &t);
     MPI_Type_commit(&t);
-    info.vertical_halo_type = unique_mpi_datatype{t};
+    info.vertical_halo_type = Datatype{t};
 
     return info;
   }
