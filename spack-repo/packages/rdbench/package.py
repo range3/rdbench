@@ -20,6 +20,9 @@ class Rdbench(CMakePackage):
 
     depends_on('mpi')
 
+    def setup_build_environment(self, env):
+        env.unset('CPM_SOURCE_CACHE')
+
     def cmake_args(self):
         args = []
         return args
