@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.14...3.22)
 # Note: update this to your new project's name and version
 project(
   Rdbench
-  VERSION 0.1.0
+  VERSION 0.2.0
   LANGUAGES CXX
 )
 
@@ -66,6 +66,8 @@ CPMAddPackage(
 # ---- Other dependencies ----
 find_package(MPI REQUIRED)
 
+include(cmake/version.cmake)
+
 # ---- Add source files ----
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
@@ -78,7 +80,8 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdb
 add_executable(${PROJECT_NAME} ${headers} ${sources})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench")
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX Rdbench::rdbench_version)
 install(TARGETS ${PROJECT_NAME} DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 # rdbench_seq

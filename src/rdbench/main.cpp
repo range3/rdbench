@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "raii_types.hpp"
+#include "rdbench/version.h"
 #include "stopwatch.hpp"
 
 using json = nlohmann::json;
@@ -370,7 +371,8 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
       = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(write_time)
             .count();
 
-  json rdbench_result = {{"nprocs", info.nprocs},
+  json rdbench_result = {{"version", RDBENCH_VERSION},
+                         {"nprocs", info.nprocs},
                          {"xnp", info.xnp},
                          {"ynp", info.ynp},
                          {"L", info.L},
@@ -403,6 +405,7 @@ int main(int argc, char *argv[]) {
   // clang-format off
   options.add_options()
     ("h,help", "Print usage")
+    ("V,version", "Print version")
     ("xnp", "Number of processes in x-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
     ("ynp", "Number of processes in y-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
     ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
@@ -421,6 +424,11 @@ int main(int argc, char *argv[]) {
   auto parsed = options.parse(argc, argv);
   if (parsed.count("help") != 0U) {
     fmt::print("{}\n", options.help());
+    return 0;
+  }
+
+  if (parsed.count("version") != 0U) {
+    fmt::print("{}\n", RDBENCH_VERSION);
     return 0;
   }
 
