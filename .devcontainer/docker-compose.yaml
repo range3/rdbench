@@ -5,6 +5,8 @@ x-common:
     context: .
     dockerfile: Dockerfile
   init: true
+  environment:
+    MPI_HOSTS: d1,d2,d3,d4
   volumes:
     - ..:/workspaces/rdbench:cached
     - spack:/home/vscode/.cache/spack
@@ -21,6 +23,8 @@ x-common:
   extra_hosts:
     - d1:172.33.0.2
     - d2:172.33.0.3
+    - d3:172.33.0.4
+    - d4:172.33.0.5
 
 services:
   dev1:
@@ -35,6 +39,18 @@ services:
     networks:
       dev_cpp_net:
         ipv4_address: 172.33.0.3
+  dev3:
+    <<: *x-common
+    hostname: d3
+    networks:
+      dev_cpp_net:
+        ipv4_address: 172.33.0.4
+  dev4:
+    <<: *x-common
+    hostname: d4
+    networks:
+      dev_cpp_net:
+        ipv4_address: 172.33.0.5
 
 networks:
   dev_cpp_net:
