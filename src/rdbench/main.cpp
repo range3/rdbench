@@ -17,11 +17,14 @@
 #include <limits>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
 
+#include "error.hpp"
+#include "mpix/MPIX_interface_proposal.h"
 #include "raii_types.hpp"
 #include "rdbench/version.h"
 #include "stopwatch.hpp"
@@ -38,9 +41,11 @@ typedef std::vector<double> vd;
 
 struct RdbenchInfo {
   int rank;
+  int rank2d;
   int nprocs;
   int xnp;
   int ynp;
+  std::vector<int> topo;
   int L;
   int my_grid_x;
   int my_grid_y;
@@ -63,6 +68,7 @@ struct RdbenchInfo {
   size_t interval;
   bool fixed_x = false;
   bool fixed_y = false;
+  bool verbose = false;
   int rank_down;
   int rank_up;
   int rank_left;
@@ -78,20 +84,63 @@ struct RdbenchInfo {
     info.view = parsed.count("view") != 0U;
     info.sync = parsed.count("nosync") == 0U;
     info.validate = parsed.count("novalidate") == 0U;
-    int dims[2] = {parsed["ynp"].as<int>(), parsed["xnp"].as<int>()};
-    MPI_Dims_create(info.nprocs, 2, dims);
-    info.xnp = dims[1];
-    info.ynp = dims[0];
     info.fixed_x = parsed["fixed-x"].count() != 0U;
     info.fixed_y = parsed["fixed-y"].count() != 0U;
     info.total_steps = parsed["steps"].as<size_t>();
     info.interval = parsed["interval"].as<size_t>();
     info.L = parsed["L"].as<int>();
+    info.verbose = parsed["verbose"].count() != 0U;
 
-    MPI_Comm comm_2d;
     int periods[] = {info.fixed_y ? 0 : 1, info.fixed_x ? 0 : 1};
-    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &comm_2d);
-    info.comm_2d = Comm{comm_2d};
+    int dims[2] = {parsed["ynp"].as<int>(), parsed["xnp"].as<int>()};
+    if (parsed.count("topology") == 0U) {
+      MPI_Dims_create(info.nprocs, 2, dims);
+      info.xnp = dims[1];
+      info.ynp = dims[0];
+      info.topo = {info.nprocs};
+
+      MPI_Comm comm_2d;
+      MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 1, &comm_2d);
+      info.comm_2d = Comm{comm_2d};
+    } else {
+      int ecode;
+      info.topo = parsed["topology"].as<std::vector<int>>();
+      std::vector<int> dims_ml(2 * info.topo.size());
+      auto nprocs_in_topo = std::reduce(info.topo.begin(), info.topo.end(), 1,
+                                        [](int acc, int cur) { return acc * cur; });
+      if (nprocs_in_topo != info.nprocs) {
+        throw std::invalid_argument(
+            "nprocs specified in --topology does not match nprocs in mpirun");
+      }
+
+      if ((ecode = MPIX_Dims_ml_create(info.nprocs, 2, MPIX_WEIGHTS_EQUAL, info.topo.size(),
+                                       &info.topo[0], &dims_ml[0]))
+          != MPI_SUCCESS) {
+        throw mpi_error(ecode);
+      }
+      if (info.verbose && info.rank == 0) {
+        std::string out;
+        out = "x: ";
+        for (size_t l = 0; l < info.topo.size(); ++l) {
+          out += fmt::format("{} ", dims_ml[1 * info.topo.size() + l]);
+        }
+        out += "\ny: ";
+        for (size_t l = 0; l < info.topo.size(); ++l) {
+          out += fmt::format("{} ", dims_ml[0 * info.topo.size() + l]);
+        }
+        out += "\n";
+        fmt::print("{}", out);
+      }
+      MPI_Comm comm_2d;
+      MPIX_Cart_ml_create(MPI_COMM_WORLD, 2, periods, info.topo.size(), &dims_ml[0], MPI_INFO_NULL,
+                          dims, &comm_2d);
+      info.comm_2d = Comm{comm_2d};
+      info.xnp = dims[1];
+      info.ynp = dims[0];
+    }
+
+    MPI_Comm_rank(info.comm_2d.get(), &info.rank2d);
+
     int coords[2];
     MPI_Cart_coords(info.comm_2d.get(), info.rank, 2, coords);
     MPI_Cart_shift(info.comm_2d.get(), 0, 1, &info.rank_up, &info.rank_down);
@@ -139,7 +188,7 @@ struct RdbenchInfo {
   }
 
   std::string output_file(const int idx) const {
-    return fmt::format("{}{:06}.bin", output_prefix, idx);
+    return fmt::format("{}{}x{}-{:06}.bin", output_prefix, L, L, idx);
   }
 
   size_t chunk_idx(const int iy, const int ix) const {
@@ -373,6 +422,7 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
 
   json rdbench_result = {{"version", RDBENCH_VERSION},
                          {"nprocs", info.nprocs},
+                         {"topology", info.topo},
                          {"xnp", info.xnp},
                          {"ynp", info.ynp},
                          {"L", info.L},
@@ -400,18 +450,49 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
   std::cout << rdbench_result << std::endl;
 }
 
+void print_cartesian(RdbenchInfo &info) {
+  int rank2d;
+  MPI_Comm_rank(info.comm_2d.get(), &rank2d);
+  std::vector<int> ranks(info.nprocs);
+  MPI_Gather(&info.rank, 1, MPI_INT, &ranks[0], 1, MPI_INT, 0, info.comm_2d.get());
+
+  // int coords[2];
+  // MPI_Cart_coords(info.comm_2d.get(), rank2d, 2, coords);
+
+  if (info.rank == 0) {
+    for (int y = 0; y < info.ynp; ++y) {
+      for (int x = 0; x < info.xnp; ++x) {
+        fmt::print("{:>3} ", ranks[y * info.xnp + x]);
+      }
+      fmt::print("\n");
+    }
+
+    // int c[2];
+    // int rank;
+    // for (c[0] = 0; c[0] < info.ynp; ++c[0]) {
+    //   for (c[1] = 0; c[1] < info.xnp; ++c[1]) {
+    //     MPI_Cart_rank(info.comm_2d.get(), c, &rank);
+    //     fmt::print("{:>3} ", rank);
+    //   }
+    //   fmt::print("\n");
+    // }
+  }
+}
+
 int main(int argc, char *argv[]) {
   cxxopts::Options options("rdbench", "MPI/MPI-IO benchmark based on 2D reaction-diffusion system");
   // clang-format off
   options.add_options()
     ("h,help", "Print usage")
     ("V,version", "Print version")
-    ("xnp", "Number of processes in x-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
-    ("ynp", "Number of processes in y-axis (0 == auto)", cxxopts::value<int>()->default_value("0"))
+    ("v,verbose", "Verbose output")
+    ("t,topology", "Variable level hardware topology (e.g. -t 2,8 2-node 8-core, -t 4,2,4 4-node 2-socket 4-core) default: np (flat topology)", cxxopts::value<std::vector<int>>())
+    ("xnp", "Number of processes in x-axis (0 == auto), is ignored if -t is set.", cxxopts::value<int>()->default_value("0"))
+    ("ynp", "Number of processes in y-axis (0 == auto), is ignored if -t is set", cxxopts::value<int>()->default_value("0"))
     ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
     ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("./out_"))
-    ("c,collective", "Writing files in collective mode of MPI-IO")
-    ("v,view", "Use MPI_File_set_view")
+    ("collective", "Writing files in collective mode of MPI-IO")
+    ("view", "Use MPI_File_set_view")
     ("nosync", "MPI_File_sync is no longer called.")
     ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
     ("i,interval", "Write the array into files every i steps (0 == disable file output)", cxxopts::value<size_t>()->default_value("200"))
@@ -440,6 +521,10 @@ int main(int argc, char *argv[]) {
     RdbenchInfo info = RdbenchInfo::create(parsed);
     Stopwatch stopwatch;
     Stopwatch::duration time_calc(0), time_write(0);
+
+    if (info.verbose) {
+      print_cartesian(info);
+    }
 
     const int V = (info.chunk_size_x + 2) * (info.chunk_size_y + 2);
     vd u(V, 0.0), v(V, 0.0);

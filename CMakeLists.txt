@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.14...3.22)
 project(
   Rdbench
   VERSION 0.2.0
-  LANGUAGES CXX
+  LANGUAGES CXX C
 )
 
 # ---- Include guards ----
@@ -72,12 +72,14 @@ include(cmake/version.cmake)
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.hpp")
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.cpp")
+file(GLOB_RECURSE src_hpp CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.hpp")
+file(GLOB_RECURSE src_cpp CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.cpp")
+file(GLOB_RECURSE src_h CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.h")
+file(GLOB_RECURSE src_c CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.c")
 
 # ---- Create executable ----
 # rdbench
-add_executable(${PROJECT_NAME} ${headers} ${sources})
+add_executable(${PROJECT_NAME} ${src_hpp} ${src_cpp} ${src_h} ${src_c})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench")
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
 target_link_libraries(${PROJECT_NAME} PRIVATE
