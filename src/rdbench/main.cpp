@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cxxopts.hpp>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -142,18 +143,18 @@ struct RdbenchInfo {
     MPI_Comm_rank(info.comm_2d.get(), &info.rank2d);
 
     int coords[2];
-    MPI_Cart_coords(info.comm_2d.get(), info.rank, 2, coords);
+    MPI_Cart_coords(info.comm_2d.get(), info.rank2d, 2, coords);
     MPI_Cart_shift(info.comm_2d.get(), 0, 1, &info.rank_up, &info.rank_down);
     MPI_Cart_shift(info.comm_2d.get(), 1, 1, &info.rank_left, &info.rank_right);
     info.my_grid_x = coords[1];
     info.my_grid_y = coords[0];
     info.chunk_size_x = info.L / info.xnp;
     if (info.L % info.xnp) {
-      throw std::invalid_argument("L mod xnp must be 0");
+      throw std::invalid_argument(fmt::format("L ({}) mod xnp ({}) must be 0", info.L, info.xnp));
     }
     info.chunk_size_y = info.L / info.ynp;
     if (info.L % info.ynp) {
-      throw std::invalid_argument("L mod ynp must be 0");
+      throw std::invalid_argument(fmt::format("L ({}) mod ynp ({}) must be 0", info.L, info.ynp));
     }
     info.my_begin_x = info.chunk_size_x * info.my_grid_x;
     info.my_begin_y = info.chunk_size_y * info.my_grid_y;
@@ -306,7 +307,7 @@ void write_file(vd &local_data, int index, RdbenchInfo &info) {
 
   MPI_File fh;
   MPI_Status status;
-  MPI_File_open(MPI_COMM_WORLD, filename.c_str(),
+  MPI_File_open(info.comm_2d.get(), filename.c_str(),
                 MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN, MPI_INFO_NULL, &fh);
   MPI_File_set_atomicity(fh, false);
 
@@ -348,7 +349,7 @@ void read_file(vd &local_data, int index, RdbenchInfo &info) {
 
   MPI_File fh;
   MPI_Status status;
-  MPI_File_open(MPI_COMM_WORLD, filename.c_str(), MPI_MODE_RDONLY | MPI_MODE_UNIQUE_OPEN,
+  MPI_File_open(info.comm_2d.get(), filename.c_str(), MPI_MODE_RDONLY | MPI_MODE_UNIQUE_OPEN,
                 MPI_INFO_NULL, &fh);
   MPI_File_set_atomicity(fh, false);
 
@@ -456,9 +457,6 @@ void print_cartesian(RdbenchInfo &info) {
   std::vector<int> ranks(info.nprocs);
   MPI_Gather(&info.rank, 1, MPI_INT, &ranks[0], 1, MPI_INT, 0, info.comm_2d.get());
 
-  // int coords[2];
-  // MPI_Cart_coords(info.comm_2d.get(), rank2d, 2, coords);
-
   if (info.rank == 0) {
     for (int y = 0; y < info.ynp; ++y) {
       for (int x = 0; x < info.xnp; ++x) {
@@ -466,17 +464,13 @@ void print_cartesian(RdbenchInfo &info) {
       }
       fmt::print("\n");
     }
-
-    // int c[2];
-    // int rank;
-    // for (c[0] = 0; c[0] < info.ynp; ++c[0]) {
-    //   for (c[1] = 0; c[1] < info.xnp; ++c[1]) {
-    //     MPI_Cart_rank(info.comm_2d.get(), c, &rank);
-    //     fmt::print("{:>3} ", rank);
-    //   }
-    //   fmt::print("\n");
-    // }
   }
+}
+
+void ensure_output_directory_exists(RdbenchInfo &info) {
+  namespace fs = std::filesystem;
+  fs::path out = info.output_prefix;
+  fs::create_directories(out.parent_path());
 }
 
 int main(int argc, char *argv[]) {
@@ -525,6 +519,8 @@ int main(int argc, char *argv[]) {
     if (info.verbose) {
       print_cartesian(info);
     }
+
+    ensure_output_directory_exists(info);
 
     const int V = (info.chunk_size_x + 2) * (info.chunk_size_y + 2);
     vd u(V, 0.0), v(V, 0.0);
