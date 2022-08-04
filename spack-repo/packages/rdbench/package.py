@@ -16,7 +16,8 @@ class Rdbench(CMakePackage):
     maintainers = ['range3']
 
     version('master', branch='master')
-    version('0.4.1', sha256='359a90211b0f07b98e1319366469a44985734f83fc1d39f2df6a0871bcf7183e', preferred=True)
+    version('0.4.2', sha256='e832530bb874410c3893f2568ee9f80d8cdc25ac281c31ca9ac42c306cd746a8', preferred=True)
+    version('0.4.1', sha256='359a90211b0f07b98e1319366469a44985734f83fc1d39f2df6a0871bcf7183e')
     version('0.4.0', sha256='b9b64a8097b37f7c031ad4fbedbe7e086fd61307d5be616d30fcf8e9802045f5')
     version('0.3.0', sha256='f0e3c86557e44aca44361f061fa88ea4553de2520bf2369c2979e0fc0ae1500e')
     version('0.2.0', sha256='b621c659dff6bb7d6e1d8d04cf7485707b44059746e2fede5534b7b51a784767')
