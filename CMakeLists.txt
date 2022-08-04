@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.14...3.22)
 # Note: update this to your new project's name and version
 project(
   Rdbench
-  VERSION 0.4.1
+  VERSION 0.4.2
   LANGUAGES CXX C
 )
 
@@ -80,10 +80,10 @@ file(GLOB_RECURSE src_c CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdben
 # ---- Create executable ----
 # rdbench
 add_executable(${PROJECT_NAME} ${src_hpp} ${src_cpp} ${src_h} ${src_c})
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "rdbench")
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON OUTPUT_NAME "rdbench")
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX Rdbench::rdbench_version)
+  fmt::fmt cxxopts::cxxopts nlohmann_json::nlohmann_json MPI::MPI_CXX Rdbench::rdbench_version stdc++fs)
 install(TARGETS ${PROJECT_NAME} DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 # rdbench_seq
