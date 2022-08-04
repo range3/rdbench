@@ -107,8 +107,8 @@ struct RdbenchInfo {
       int ecode;
       info.topo = parsed["topology"].as<std::vector<int>>();
       std::vector<int> dims_ml(2 * info.topo.size());
-      auto nprocs_in_topo = std::reduce(info.topo.begin(), info.topo.end(), 1,
-                                        [](int acc, int cur) { return acc * cur; });
+      auto nprocs_in_topo = std::accumulate(info.topo.begin(), info.topo.end(), 1,
+                                            [](int acc, int cur) { return acc * cur; });
       if (nprocs_in_topo != info.nprocs) {
         throw std::invalid_argument(
             "nprocs specified in --topology does not match nprocs in mpirun");
