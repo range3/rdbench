@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.14...3.22)
 # Note: update this to your new project's name and version
 project(
   Rdbench
-  VERSION 0.4.2
+  VERSION 0.5.1
   LANGUAGES CXX C
 )
 
