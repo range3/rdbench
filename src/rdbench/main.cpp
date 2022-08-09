@@ -68,6 +68,7 @@ struct RdbenchInfo {
   bool collective = false;
   bool sync = true;
   bool validate = true;
+  bool initial_output = true;
   Datatype filetype;
   Datatype memtype;
   Datatype vertical_halo_type;
@@ -100,6 +101,7 @@ struct RdbenchInfo {
     info.collective = parsed.count("collective") != 0U;
     info.sync = parsed.count("nosync") == 0U;
     info.validate = parsed.count("novalidate") == 0U;
+    info.initial_output = parsed.count("disable-initial-output") == 0U;
     info.fixed_x = parsed["fixed-x"].count() != 0U;
     info.fixed_y = parsed["fixed-y"].count() != 0U;
     info.total_steps = parsed["steps"].as<size_t>();
@@ -529,6 +531,7 @@ int main(int argc, char *argv[]) {
     ("fixed-x", "Fixed boundary in x-axis")
     ("fixed-y", "Fixed boundary in y-axis")
     ("novalidate", "Disable IO validation feature reading the data written in the file to check if it was written correctly")
+    ("disable-initial-output", "Disable file output for initial state")
   ;
   // clang-format on
 
@@ -572,7 +575,7 @@ int main(int argc, char *argv[]) {
     }
 
     stopwatch.reset();
-    if (info.interval != 0) {
+    if (info.initial_output && info.interval != 0) {
       write_file(u, file_idx++, info);
       time_write += stopwatch.get_and_reset();
     }
