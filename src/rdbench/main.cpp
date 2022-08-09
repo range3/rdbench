@@ -524,7 +524,7 @@ int main(int argc, char *argv[]) {
       "\tmanual: 2d block-cyclic, write line-by-line.\n"
       "\tview: 2d block-cyclic, use MPI_File_set_view.\n"
       "\tchunk: block partitioning.\n", cxxopts::value<std::string>()->default_value("view"))
-    ("collective", "Writing files in collective mode of MPI-IO")
+    ("c,collective", "Writing files in collective mode of MPI-IO")
     ("nosync", "MPI_File_sync is no longer called.")
     ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
     ("i,interval", "Write the array into files every i steps (0 == disable file output)", cxxopts::value<size_t>()->default_value("200"))
