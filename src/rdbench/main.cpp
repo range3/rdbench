@@ -22,6 +22,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "error.hpp"
@@ -40,6 +41,11 @@ const double Dv = 0.1;
 
 typedef std::vector<double> vd;
 
+enum class IOType { Manual, View, Chunk };
+static std::unordered_map<std::string, IOType> iotype_from_string{{"manual", IOType::Manual},
+                                                                  {"view", IOType::View},
+                                                                  {"chunk", IOType::Chunk}};
+
 struct RdbenchInfo {
   int rank;
   int rank2d;
@@ -57,8 +63,9 @@ struct RdbenchInfo {
   int my_end_x;
   int my_end_y;
   std::string output_prefix;
+  std::string iot = "view";
+  IOType iotype = IOType::View;
   bool collective = false;
-  bool view = false;
   bool sync = true;
   bool validate = true;
   Datatype filetype;
@@ -80,9 +87,17 @@ struct RdbenchInfo {
     MPI_Comm_size(MPI_COMM_WORLD, &info.nprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &info.rank);
 
+    {
+      info.iot = parsed["iotype"].as<std::string>();
+      auto i = iotype_from_string.find(info.iot);
+      if (i == iotype_from_string.end()) {
+        throw std::invalid_argument(fmt::format("invalid iotype {}", info.iot));
+      }
+      info.iotype = i->second;
+    }
+
     info.output_prefix = parsed["output"].as<std::string>();
     info.collective = parsed.count("collective") != 0U;
-    info.view = parsed.count("view") != 0U;
     info.sync = parsed.count("nosync") == 0U;
     info.validate = parsed.count("novalidate") == 0U;
     info.fixed_x = parsed["fixed-x"].count() != 0U;
@@ -162,7 +177,7 @@ struct RdbenchInfo {
     info.my_end_y = info.my_begin_y + info.chunk_size_y;
 
     MPI_Datatype t;
-    if (info.view) {
+    if (info.iotype == IOType::View) {
       int array_shape[] = {info.L, info.L};
       int chunk_shape[] = {info.chunk_size_y, info.chunk_size_x};
       int chunk_start[] = {info.my_begin_y, info.my_begin_x};
@@ -189,7 +204,7 @@ struct RdbenchInfo {
   }
 
   std::string output_file(const int idx) const {
-    return fmt::format("{}{}x{}-{:06}.bin", output_prefix, L, L, idx);
+    return fmt::format("{}{}x{}-{}x{}-{:06}.bin", output_prefix, L, L, chunk_size_x, chunk_size_y, idx);
   }
 
   size_t chunk_idx(const int iy, const int ix) const {
@@ -314,7 +329,7 @@ void write_file(vd &local_data, int index, RdbenchInfo &info) {
   int (*write_func)(MPI_File, MPI_Offset, const void *, int, MPI_Datatype, MPI_Status *);
   write_func = info.collective ? MPI_File_write_at_all : MPI_File_write_at;
 
-  if (info.view) {
+  if (info.iotype == IOType::View) {
     MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype.get(), "native", MPI_INFO_NULL);
     int wcount;
     do {
@@ -356,7 +371,7 @@ void read_file(vd &local_data, int index, RdbenchInfo &info) {
   int (*read_func)(MPI_File, MPI_Offset, void *, int, MPI_Datatype, MPI_Status *);
   read_func = info.collective ? MPI_File_read_at_all : MPI_File_read_at;
 
-  if (info.view) {
+  if (info.iotype == IOType::View) {
     MPI_File_set_view(fh, 0, MPI_DOUBLE, info.filetype.get(), "native", MPI_INFO_NULL);
     int rcount;
     do {
@@ -430,7 +445,7 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
                          {"chunkSizeX", info.chunk_size_x},
                          {"chunkSizeY", info.chunk_size_y},
                          {"collective", info.collective},
-                         {"view", info.view},
+                         {"iotype", info.iot},
                          {"sync", info.sync},
                          {"validate", info.validate},
                          {"steps", info.total_steps},
@@ -476,7 +491,7 @@ void ensure_output_directory_exists(RdbenchInfo &info) {
 int main(int argc, char *argv[]) {
   cxxopts::Options options("rdbench", "MPI/MPI-IO benchmark based on 2D reaction-diffusion system");
   // clang-format off
-  options.add_options()
+  options.set_width(100).set_tab_expansion().add_options()
     ("h,help", "Print usage")
     ("V,version", "Print version")
     ("v,verbose", "Verbose output")
@@ -485,8 +500,12 @@ int main(int argc, char *argv[]) {
     ("ynp", "Number of processes in y-axis (0 == auto), is ignored if -t is set", cxxopts::value<int>()->default_value("0"))
     ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
     ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("./out_"))
+    ("iotype",
+      "manual / view / chunk\n"
+      "\tmanual: 2d block-cyclic, write line-by-line.\n"
+      "\tview: 2d block-cyclic, use MPI_File_set_view.\n"
+      "\tchunk: block partitioning.\n", cxxopts::value<std::string>()->default_value("view"))
     ("collective", "Writing files in collective mode of MPI-IO")
-    ("view", "Use MPI_File_set_view")
     ("nosync", "MPI_File_sync is no longer called.")
     ("s,steps", "Total steps", cxxopts::value<size_t>()->default_value("20000"))
     ("i,interval", "Write the array into files every i steps (0 == disable file output)", cxxopts::value<size_t>()->default_value("200"))
