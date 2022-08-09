@@ -177,34 +177,35 @@ struct RdbenchInfo {
     info.my_end_y = info.my_begin_y + info.chunk_size_y;
 
     MPI_Datatype t;
+    int array_shape[] = {info.chunk_size_y + 2, info.chunk_size_x + 2};
+    int chunk_shape[] = {info.chunk_size_y, info.chunk_size_x};
+    int chunk_start[] = {1, 1};
+    MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE, &t);
+    MPI_Type_commit(&t);
+    info.memtype = Datatype{t};
+
+    MPI_Type_vector(info.chunk_size_y, 1, info.chunk_size_x + 2, MPI_DOUBLE, &t);
+    MPI_Type_commit(&t);
+    info.vertical_halo_type = Datatype{t};
+
     if (info.iotype == IOType::View) {
-      int array_shape[] = {info.L, info.L};
-      int chunk_shape[] = {info.chunk_size_y, info.chunk_size_x};
-      int chunk_start[] = {info.my_begin_y, info.my_begin_x};
+      array_shape[0] = array_shape[1] = info.L;
+      chunk_shape[0] = info.chunk_size_y;
+      chunk_shape[1] = info.chunk_size_x;
+      chunk_start[0] = info.my_begin_y;
+      chunk_start[1] = info.my_begin_x;
       MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE,
                                &t);
       MPI_Type_commit(&t);
       info.filetype = Datatype{t};
-
-      array_shape[0] = info.chunk_size_y + 2;
-      array_shape[1] = info.chunk_size_x + 2;
-      chunk_shape[0] = info.chunk_size_y;
-      chunk_shape[1] = info.chunk_size_x;
-      chunk_start[0] = chunk_start[1] = 1;
-      MPI_Type_create_subarray(2, array_shape, chunk_shape, chunk_start, MPI_ORDER_C, MPI_DOUBLE,
-                               &t);
-      MPI_Type_commit(&t);
-      info.memtype = Datatype{t};
     }
-    MPI_Type_vector(info.chunk_size_y, 1, info.chunk_size_x + 2, MPI_DOUBLE, &t);
-    MPI_Type_commit(&t);
-    info.vertical_halo_type = Datatype{t};
 
     return info;
   }
 
   std::string output_file(const int idx) const {
-    return fmt::format("{}{}x{}-{}x{}-{:06}.bin", output_prefix, L, L, chunk_size_x, chunk_size_y, idx);
+    return fmt::format("{}{}x{}-{}x{}-{:06}.bin", output_prefix, L, L, chunk_size_x, chunk_size_y,
+                       idx);
   }
 
   size_t chunk_idx(const int iy, const int ix) const {
@@ -336,6 +337,14 @@ void write_file(vd &local_data, int index, RdbenchInfo &info) {
       write_func(fh, 0, local_data.data(), 1, info.memtype.get(), &status);
       MPI_Get_count(&status, info.memtype.get(), &wcount);
     } while (wcount != 1);
+  } else if (info.iotype == IOType::Chunk) {
+    int count = info.chunk_size_x * info.chunk_size_y;
+    int wcount;
+    do {
+      write_func(fh, sizeof(vd::value_type) * count * info.rank2d, local_data.data(), 1,
+                 info.memtype.get(), &status);
+      MPI_Get_count(&status, info.memtype.get(), &wcount);
+    } while (wcount != 1);
   } else {
     int wcount, wc;
     for (int iy = 0; iy < info.chunk_size_y; ++iy) {
@@ -378,6 +387,14 @@ void read_file(vd &local_data, int index, RdbenchInfo &info) {
       read_func(fh, 0, &local_data[0], 1, info.memtype.get(), &status);
       MPI_Get_count(&status, info.memtype.get(), &rcount);
     } while (rcount != 1);
+  } else if (info.iotype == IOType::Chunk) {
+    int count = info.chunk_size_x * info.chunk_size_y;
+    int wcount;
+    do {
+      read_func(fh, sizeof(vd::value_type) * count * info.rank2d, &local_data[0], 1,
+                 info.memtype.get(), &status);
+      MPI_Get_count(&status, info.memtype.get(), &wcount);
+    } while (wcount != 1);
   } else {
     int rcount, rc;
     for (int iy = 0; iy < info.chunk_size_y; ++iy) {
