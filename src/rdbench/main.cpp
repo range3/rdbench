@@ -394,7 +394,7 @@ void read_file(vd &local_data, int index, RdbenchInfo &info) {
     int wcount;
     do {
       read_func(fh, sizeof(vd::value_type) * count * info.rank2d, &local_data[0], 1,
-                 info.memtype.get(), &status);
+                info.memtype.get(), &status);
       MPI_Get_count(&status, info.memtype.get(), &wcount);
     } while (wcount != 1);
   } else {
@@ -504,7 +504,9 @@ void print_cartesian(RdbenchInfo &info) {
 void ensure_output_directory_exists(RdbenchInfo &info) {
   namespace fs = std::filesystem;
   fs::path out = info.output_prefix;
-  fs::create_directories(out.parent_path());
+  if (out.has_parent_path()) {
+    fs::create_directories(out.parent_path());
+  }
 }
 
 int main(int argc, char *argv[]) {
