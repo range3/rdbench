@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright 2022 range3 ( https://github.com/range3 )
 // This file is modified from ( https://github.com/kaityo256/sevendayshpc )
 // under license CC-BY-4.0.
 // https://github.com/kaityo256/sevendayshpc/blob/main/LICENSE
@@ -520,7 +518,7 @@ int main(int argc, char *argv[]) {
     ("xnp", "Number of processes in x-axis (0 == auto), is ignored if -t is set.", cxxopts::value<int>()->default_value("0"))
     ("ynp", "Number of processes in y-axis (0 == auto), is ignored if -t is set", cxxopts::value<int>()->default_value("0"))
     ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
-    ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("./out_"))
+    ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("out/o_"))
     ("iotype",
       "manual / view / chunk\n"
       "\tmanual: 2d block-cyclic, write line-by-line.\n"
