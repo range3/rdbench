@@ -2,6 +2,7 @@
 /install*
 /.vscode
 /cpm_modules
+/.venv*
 .DS_Store
 compile_commands.json
 __pycache__
