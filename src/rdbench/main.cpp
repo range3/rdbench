@@ -565,11 +565,11 @@ int main(int argc, char *argv[]) {
     vd u(V, 0.0), v(V, 0.0);
     vd u2(V, 0.0), v2(V, 0.0);
     int step;
-    int file_idx = 1;
+    int file_idx = 0;
     init(u, v, info);
 
     if (info.validate) {
-      if (!validate_file_io(u, 0, info)) {
+      if (!validate_file_io(u, file_idx++, info)) {
         throw std::runtime_error("Read validation failed");
       }
     }
@@ -598,7 +598,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (info.validate) {
-      if (!validate_file_io(u, 0, info)) {
+      if (!validate_file_io(u, file_idx++, info)) {
         throw std::runtime_error("Read validation failed");
       }
     }
