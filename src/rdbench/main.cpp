@@ -17,6 +17,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <numeric>
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -67,6 +68,7 @@ struct RdbenchInfo {
   bool sync = true;
   bool validate = true;
   bool initial_output = true;
+  bool create_output_dir = true;
   Datatype filetype;
   Datatype memtype;
   Datatype vertical_halo_type;
@@ -100,6 +102,7 @@ struct RdbenchInfo {
     info.sync = parsed.count("nosync") == 0U;
     info.validate = parsed.count("novalidate") == 0U;
     info.initial_output = parsed.count("disable-initial-output") == 0U;
+    info.create_output_dir = parsed.count("nomkdir") == 0U;
     info.fixed_x = parsed["fixed-x"].count() != 0U;
     info.fixed_y = parsed["fixed-y"].count() != 0U;
     info.total_steps = parsed["steps"].as<size_t>();
@@ -503,7 +506,8 @@ void ensure_output_directory_exists(RdbenchInfo &info) {
   namespace fs = std::filesystem;
   fs::path out = info.output_prefix;
   if (out.has_parent_path()) {
-    fs::create_directories(out.parent_path());
+    auto parent = std::regex_replace(out.parent_path().string(), std::regex("^[^:]+:"), "");
+    fs::create_directories(parent);
   }
 }
 
@@ -532,6 +536,7 @@ int main(int argc, char *argv[]) {
     ("fixed-y", "Fixed boundary in y-axis")
     ("novalidate", "Disable IO validation feature reading the data written in the file to check if it was written correctly")
     ("disable-initial-output", "Disable file output for initial state")
+    ("nomkdir", "Disable output directory craetion using POSIX")
   ;
   // clang-format on
 
@@ -559,7 +564,9 @@ int main(int argc, char *argv[]) {
       print_cartesian(info);
     }
 
-    ensure_output_directory_exists(info);
+    if (info.create_output_dir && info.rank == 0) {
+      ensure_output_directory_exists(info);
+    }
 
     const int V = (info.chunk_size_x + 2) * (info.chunk_size_y + 2);
     vd u(V, 0.0), v(V, 0.0);
