@@ -45,6 +45,11 @@ static std::unordered_map<std::string, IOType> iotype_from_string{{"manual", IOT
                                                                   {"view", IOType::View},
                                                                   {"chunk", IOType::Chunk}};
 
+enum class RdbenchPhase { Calc, Write };
+static std::unordered_map<RdbenchPhase, std::string> phase_to_string{
+    {RdbenchPhase::Calc, "calc"},
+    {RdbenchPhase::Write, "write"}};
+
 struct RdbenchInfo {
   int rank;
   int rank2d;
@@ -75,6 +80,8 @@ struct RdbenchInfo {
   Comm comm_2d;
   size_t total_steps;
   size_t interval;
+  size_t write_phase_count = 0;
+  size_t calc_phase_count = 1;
   bool fixed_x = false;
   bool fixed_y = false;
   bool verbose = false;
@@ -109,6 +116,11 @@ struct RdbenchInfo {
     info.interval = parsed["interval"].as<size_t>();
     info.L = parsed["L"].as<int>();
     info.verbose = parsed["verbose"].count() != 0U;
+
+    if (info.interval != 0) {
+      info.write_phase_count = info.total_steps / info.interval + (info.initial_output ? 1 : 0);
+      info.calc_phase_count = (info.total_steps + info.interval - 1) / info.interval;
+    }
 
     int periods[] = {info.fixed_y ? 0 : 1, info.fixed_x ? 0 : 1};
     int dims[2] = {parsed["ynp"].as<int>(), parsed["xnp"].as<int>()};
@@ -445,16 +457,55 @@ bool validate_file_io(vd &u, int index, RdbenchInfo &info) {
   return true;
 }
 
-void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
+void print_result(const std::vector<std::pair<RdbenchPhase, Stopwatch::duration>> &phase_durations,
                   RdbenchInfo &info) {
-  size_t nfiles = info.interval > 0 ? 1 + info.total_steps / info.interval : 0;
+  size_t nfiles = info.write_phase_count;
   size_t file_size = info.L * info.L * sizeof(double);
   size_t total_write_size = nfiles * file_size;
-  double calc_time_sec
-      = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(calc_time).count();
-  double write_time_sec
-      = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(write_time)
-            .count();
+
+  std::vector<std::pair<RdbenchPhase, int64_t>> phase_durations_i8;
+  std::transform(phase_durations.begin(), phase_durations.end(),
+                 std::back_inserter(phase_durations_i8),
+                 [](const auto &p) { return std::make_pair(p.first, p.second.count()); });
+  int64_t tc
+      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0,
+                        [](int64_t acc, const decltype(phase_durations_i8)::value_type &cur) {
+                          if (cur.first == RdbenchPhase::Calc) {
+                            acc += cur.second;
+                          }
+                          return acc;
+                        });
+  int64_t tw
+      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0,
+                        [](int64_t acc, const decltype(phase_durations_i8)::value_type &cur) {
+                          if (cur.first == RdbenchPhase::Write) {
+                            acc += cur.second;
+                          }
+                          return acc;
+                        });
+
+  int64_t max_tc, max_tw;
+  MPI_Reduce(&tc, &max_tc, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&tw, &max_tw, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
+
+  std::vector<int64_t> durations_i8;
+  std::transform(phase_durations_i8.begin(), phase_durations_i8.end(),
+                 std::back_inserter(durations_i8), [](const auto &p) { return p.second; });
+  std::vector<int64_t> durations_all_i8(phase_durations_i8.size() * info.nprocs);
+  MPI_Gather(durations_i8.data(), durations_i8.size(), MPI_INT64_T, durations_all_i8.data(),
+             durations_i8.size(), MPI_INT64_T, 0, MPI_COMM_WORLD);
+
+  if (info.rank != 0) {
+    return;
+  }
+
+  auto to_sec = [](int64_t t) {
+    return std::chrono::duration_cast<std::chrono::duration<double>>(Stopwatch::duration{t})
+        .count();
+  };
+
+  double calc_time_sec = to_sec(max_tc);
+  double write_time_sec = to_sec(max_tw);
 
   json rdbench_result = {{"version", RDBENCH_VERSION},
                          {"nprocs", info.nprocs},
@@ -472,6 +523,7 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
                          {"interval", info.interval},
                          {"fixedX", info.fixed_x},
                          {"fixedY", info.fixed_y},
+                         {"initialOutput", info.initial_output},
                          {"nfiles", nfiles},
                          {"fileSize", file_size},
                          {"totalWriteSizeByte", total_write_size},
@@ -482,6 +534,19 @@ void print_result(Stopwatch::duration calc_time, Stopwatch::duration write_time,
     rdbench_result["writeBandwidthByte"]
         = std::stod(fmt::format("{:.2f}", total_write_size / write_time_sec));
   }
+
+  auto phase_durations_json = nlohmann::ordered_json::array();
+  for (size_t i = 0; i < phase_durations.size(); ++i) {
+    double max = 0.0;
+    for (size_t rank = 0; rank < info.nprocs; ++rank) {
+      double cur = to_sec(durations_all_i8[rank * phase_durations.size() + i]);
+      if (cur > max) {
+        max = cur;
+      }
+    }
+    phase_durations_json.push_back(max);
+  }
+  rdbench_result["phaseDurationsSec"] = phase_durations_json;
 
   std::cout << rdbench_result << std::endl;
 }
@@ -558,7 +623,7 @@ int main(int argc, char *argv[]) {
     MPI_File_set_errhandler(MPI_FILE_NULL, MPI_ERRORS_ARE_FATAL);
     RdbenchInfo info = RdbenchInfo::create(parsed);
     Stopwatch stopwatch;
-    Stopwatch::duration time_calc(0), time_write(0);
+    std::vector<std::pair<RdbenchPhase, Stopwatch::duration>> phase_durations;
 
     if (info.verbose) {
       print_cartesian(info);
@@ -581,10 +646,12 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    phase_durations.reserve(info.calc_phase_count + info.write_phase_count);
+
     stopwatch.reset();
     if (info.initial_output && info.interval != 0) {
       write_file(u, file_idx++, info);
-      time_write += stopwatch.get_and_reset();
+      phase_durations.emplace_back(RdbenchPhase::Write, stopwatch.get_and_reset());
     }
 
     for (step = 1; step <= info.total_steps; step++) {
@@ -597,11 +664,14 @@ int main(int argc, char *argv[]) {
         sendrecv_halo(v2, info);
         calc(u2, v2, u, v, info);
       }
-      time_calc += stopwatch.get_and_reset();
       if (info.interval != 0 && step % info.interval == 0) {
+        phase_durations.emplace_back(RdbenchPhase::Calc, stopwatch.get_and_reset());
         write_file(step & 1 ? u : u2, file_idx++, info);
-        time_write += stopwatch.get_and_reset();
+        phase_durations.emplace_back(RdbenchPhase::Write, stopwatch.get_and_reset());
       }
+    }
+    if (info.interval == 0 || info.total_steps % info.interval != 0) {
+      phase_durations.emplace_back(RdbenchPhase::Calc, stopwatch.get_and_reset());
     }
 
     if (info.validate) {
@@ -610,15 +680,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    int64_t tc = time_calc.count();
-    int64_t tw = time_write.count();
-    int64_t max_tc, max_tw;
-    MPI_Reduce(&tc, &max_tc, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&tw, &max_tw, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
-
-    if (info.rank == 0) {
-      print_result(Stopwatch::duration{max_tc}, Stopwatch::duration{max_tw}, info);
-    }
+    print_result(phase_durations, info);
   } catch (const std::exception &e) {
     fmt::print(stderr, "exception: {}\n", e.what());
     ret = -1;
