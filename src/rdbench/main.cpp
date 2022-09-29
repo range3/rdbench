@@ -468,7 +468,7 @@ void print_result(const std::vector<std::pair<RdbenchPhase, Stopwatch::duration>
                  std::back_inserter(phase_durations_i8),
                  [](const auto &p) { return std::make_pair(p.first, p.second.count()); });
   int64_t tc
-      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0,
+      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0LL,
                         [](int64_t acc, const decltype(phase_durations_i8)::value_type &cur) {
                           if (cur.first == RdbenchPhase::Calc) {
                             acc += cur.second;
@@ -476,7 +476,7 @@ void print_result(const std::vector<std::pair<RdbenchPhase, Stopwatch::duration>
                           return acc;
                         });
   int64_t tw
-      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0,
+      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0LL,
                         [](int64_t acc, const decltype(phase_durations_i8)::value_type &cur) {
                           if (cur.first == RdbenchPhase::Write) {
                             acc += cur.second;
