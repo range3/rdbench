@@ -30,7 +30,7 @@
 #include "rdbench/version.h"
 #include "stopwatch.hpp"
 
-using json = nlohmann::json;
+using orderd_json = nlohmann::ordered_json;
 
 const double F = 0.04;
 const double k = 0.06075;
@@ -460,7 +460,7 @@ bool validate_file_io(vd &u, int index, RdbenchInfo &info) {
 void print_result(const std::vector<std::pair<RdbenchPhase, Stopwatch::duration>> &phase_durations,
                   RdbenchInfo &info) {
   size_t nfiles = info.write_phase_count;
-  size_t file_size = info.L * info.L * sizeof(double);
+  size_t file_size = static_cast<size_t>(info.L) * static_cast<size_t>(info.L) * sizeof(double);
   size_t total_write_size = nfiles * file_size;
 
   std::vector<std::pair<RdbenchPhase, int64_t>> phase_durations_i8;
@@ -507,29 +507,29 @@ void print_result(const std::vector<std::pair<RdbenchPhase, Stopwatch::duration>
   double calc_time_sec = to_sec(max_tc);
   double write_time_sec = to_sec(max_tw);
 
-  json rdbench_result = {{"version", RDBENCH_VERSION},
-                         {"nprocs", info.nprocs},
-                         {"topology", info.topo},
-                         {"xnp", info.xnp},
-                         {"ynp", info.ynp},
-                         {"L", info.L},
-                         {"chunkSizeX", info.chunk_size_x},
-                         {"chunkSizeY", info.chunk_size_y},
-                         {"collective", info.collective},
-                         {"iotype", info.iot},
-                         {"sync", info.sync},
-                         {"validate", info.validate},
-                         {"steps", info.total_steps},
-                         {"interval", info.interval},
-                         {"fixedX", info.fixed_x},
-                         {"fixedY", info.fixed_y},
-                         {"initialOutput", info.initial_output},
-                         {"nfiles", nfiles},
-                         {"fileSize", file_size},
-                         {"totalWriteSizeByte", total_write_size},
-                         {"calcTimeSec", calc_time_sec}};
+  orderd_json rdbench_result = {{"version", RDBENCH_VERSION},
+                                {"nprocs", info.nprocs},
+                                {"topology", info.topo},
+                                {"xnp", info.xnp},
+                                {"ynp", info.ynp},
+                                {"L", info.L},
+                                {"chunkSizeX", info.chunk_size_x},
+                                {"chunkSizeY", info.chunk_size_y},
+                                {"collective", info.collective},
+                                {"iotype", info.iot},
+                                {"sync", info.sync},
+                                {"validate", info.validate},
+                                {"steps", info.total_steps},
+                                {"interval", info.interval},
+                                {"fixedX", info.fixed_x},
+                                {"fixedY", info.fixed_y},
+                                {"initialOutput", info.initial_output},
+                                {"nfiles", nfiles},
+                                {"fileSize", file_size},
+                                {"totalWriteSizeByte", total_write_size},
+                                {"calcTimeSec", calc_time_sec}};
 
-  if (info.interval != 0) {
+  if (nfiles > 0) {
     rdbench_result["wrieTimeSec"] = write_time_sec;
     rdbench_result["writeBandwidthByte"]
         = std::stod(fmt::format("{:.2f}", total_write_size / write_time_sec));
