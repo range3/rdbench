@@ -18,6 +18,8 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
+option(RDBENCH_ENABLE_TRACE_LOG "Enable trace log" OFF)
+
 # ---- Set default build type ----
 # Encourage user to specify a build type (e.g. Release, Debug, etc.), otherwise
 # set it to Release.
@@ -70,6 +72,11 @@ include(cmake/version.cmake)
 
 # ---- Add source files ----
 
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/config.h.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/src/rdbench/config.h"
+  @ONLY)
+
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
 file(GLOB_RECURSE src_hpp CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdbench/*.hpp")
@@ -79,7 +86,8 @@ file(GLOB_RECURSE src_c CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/rdben
 
 # ---- Create executable ----
 # rdbench
-add_executable(${PROJECT_NAME} ${src_hpp} ${src_cpp} ${src_h} ${src_c})
+add_executable(${PROJECT_NAME} ${src_hpp} ${src_cpp} ${src_h} ${src_c} 
+  "${CMAKE_CURRENT_BINARY_DIR}/src/rdbench/config.h")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON OUTPUT_NAME "rdbench")
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
 target_link_libraries(${PROJECT_NAME} PRIVATE

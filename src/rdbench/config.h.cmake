@@ -1,0 +1,6 @@
+#ifndef RDBENCH_CONFIG_H
+#define RDBENCH_CONFIG_H
+
+#cmakedefine RDBENCH_ENABLE_TRACE_LOG
+
+#endif

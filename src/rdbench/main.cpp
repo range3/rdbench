@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "error.hpp"
+#include "log.hpp"
 #include "mpix/MPIX_interface_proposal.h"
 #include "raii_types.hpp"
 #include "rdbench/version.h"
@@ -650,9 +651,11 @@ int main(int argc, char *argv[]) {
 
     stopwatch.reset();
     if (info.initial_output && info.interval != 0) {
+      TRACE_LOG(info.rank, "write");
       write_file(u, file_idx++, info);
       phase_durations.emplace_back(RdbenchPhase::Write, stopwatch.get_and_reset());
     }
+    TRACE_LOG(info.rank, "calc");
 
     for (step = 1; step <= info.total_steps; step++) {
       if (step & 1) {
@@ -666,8 +669,10 @@ int main(int argc, char *argv[]) {
       }
       if (info.interval != 0 && step % info.interval == 0) {
         phase_durations.emplace_back(RdbenchPhase::Calc, stopwatch.get_and_reset());
+        TRACE_LOG(info.rank, "write");
         write_file(step & 1 ? u : u2, file_idx++, info);
         phase_durations.emplace_back(RdbenchPhase::Write, stopwatch.get_and_reset());
+        TRACE_LOG(info.rank, "calc");
       }
     }
     if (info.interval == 0 || info.total_steps % info.interval != 0) {
