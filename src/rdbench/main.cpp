@@ -12,6 +12,7 @@
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -45,11 +46,10 @@ static std::unordered_map<std::string, IOType> iotype_from_string{{"manual", IOT
                                                                   {"view", IOType::View},
                                                                   {"chunk", IOType::Chunk}};
 
-enum class RdbenchPhase { Calc, Write, Init, Finalize };
+enum class RdbenchPhase { Comm, Calc, Write, Init, Finalize };
 static std::unordered_map<RdbenchPhase, std::string> phase_to_string{
-    {RdbenchPhase::Calc, "calc"},
-    {RdbenchPhase::Write, "write"},
-    {RdbenchPhase::Init, "init"},
+    {RdbenchPhase::Comm, "comm"},         {RdbenchPhase::Calc, "calc"},
+    {RdbenchPhase::Write, "write"},       {RdbenchPhase::Init, "init"},
     {RdbenchPhase::Finalize, "finalize"},
 };
 
@@ -479,6 +479,16 @@ orderd_json calc_result(
                           }
                           return acc;
                         });
+
+  int64_t tcomm
+      = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0LL,
+                        [](int64_t acc, const decltype(phase_durations_i8)::value_type &cur) {
+                          if (cur.first == RdbenchPhase::Comm) {
+                            acc += cur.second;
+                          }
+                          return acc;
+                        });
+
   int64_t tw
       = std::accumulate(phase_durations_i8.begin(), phase_durations_i8.end(), 0LL,
                         [](int64_t acc, const decltype(phase_durations_i8)::value_type &cur) {
@@ -488,8 +498,9 @@ orderd_json calc_result(
                           return acc;
                         });
 
-  int64_t max_tc, max_tw;
+  int64_t max_tc, max_tw, max_tcomm;
   MPI_Reduce(&tc, &max_tc, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&tcomm, &max_tcomm, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
   MPI_Reduce(&tw, &max_tw, 1, MPI_INT64_T, MPI_MAX, 0, MPI_COMM_WORLD);
 
   std::vector<int64_t> durations_i8;
@@ -509,29 +520,33 @@ orderd_json calc_result(
   };
 
   double calc_time_sec = to_sec(max_tc);
+  double comm_time_sec = to_sec(max_tcomm);
   double write_time_sec = to_sec(max_tw);
 
-  orderd_json rdbench_result = {{"version", RDBENCH_VERSION},
-                                {"nprocs", info.nprocs},
-                                {"topology", info.topo},
-                                {"xnp", info.xnp},
-                                {"ynp", info.ynp},
-                                {"L", info.L},
-                                {"chunkSizeX", info.chunk_size_x},
-                                {"chunkSizeY", info.chunk_size_y},
-                                {"collective", info.collective},
-                                {"iotype", info.iot},
-                                {"sync", info.sync},
-                                {"validate", info.validate},
-                                {"steps", info.total_steps},
-                                {"interval", info.interval},
-                                {"fixedX", info.fixed_x},
-                                {"fixedY", info.fixed_y},
-                                {"initialOutput", info.initial_output},
-                                {"nfiles", nfiles},
-                                {"fileSize", file_size},
-                                {"totalWriteSizeByte", total_write_size},
-                                {"calcTimeSec", calc_time_sec}};
+  orderd_json rdbench_result = {
+      {"version", RDBENCH_VERSION},
+      {"nprocs", info.nprocs},
+      {"topology", info.topo},
+      {"xnp", info.xnp},
+      {"ynp", info.ynp},
+      {"L", info.L},
+      {"chunkSizeX", info.chunk_size_x},
+      {"chunkSizeY", info.chunk_size_y},
+      {"collective", info.collective},
+      {"iotype", info.iot},
+      {"sync", info.sync},
+      {"validate", info.validate},
+      {"steps", info.total_steps},
+      {"interval", info.interval},
+      {"fixedX", info.fixed_x},
+      {"fixedY", info.fixed_y},
+      {"initialOutput", info.initial_output},
+      {"nfiles", nfiles},
+      {"fileSize", file_size},
+      {"totalWriteSizeByte", total_write_size},
+      {"calcTimeSec", calc_time_sec},
+      {"commTimeSec", comm_time_sec},
+  };
 
   if (nfiles > 0) {
     rdbench_result["writeTimeSec"] = write_time_sec;
@@ -548,7 +563,8 @@ orderd_json calc_result(
         max = cur;
       }
     }
-    phase_durations_json.push_back(max);
+
+    phase_durations_json.push_back(orderd_json{phase_to_string[phase_durations[i].first], max});
   }
   rdbench_result["initialTimeSec"] = phase_durations_json.front();
   rdbench_result["finalizeTimeSec"] = nullptr;
@@ -608,6 +624,7 @@ int main(int argc, char *argv[]) {
     ("novalidate", "Disable IO validation feature reading the data written in the file to check if it was written correctly")
     ("disable-initial-output", "Disable file output for initial state")
     ("nomkdir", "Disable output directory craetion using POSIX")
+    ("prettify", "Prettify JSON output")
   ;
   // clang-format on
 
@@ -666,10 +683,12 @@ int main(int argc, char *argv[]) {
       if (step & 1) {
         sendrecv_halo(u, info);
         sendrecv_halo(v, info);
+        phase_durations.emplace_back(RdbenchPhase::Comm, stopwatch.get_and_reset());
         calc(u, v, u2, v2, info);
       } else {
         sendrecv_halo(u2, info);
         sendrecv_halo(v2, info);
+        phase_durations.emplace_back(RdbenchPhase::Comm, stopwatch.get_and_reset());
         calc(u2, v2, u, v, info);
       }
       if (info.interval != 0 && step % info.interval == 0) {
@@ -700,7 +719,11 @@ int main(int argc, char *argv[]) {
         = std::chrono::duration_cast<std::chrono::duration<double>>(stopwatch.get_and_reset())
               .count();
     rdbench_result["finalizeTimeSec"] = finalize_time_sec;
-    rdbench_result["phaseDurationsSec"].push_back(finalize_time_sec);
+    rdbench_result["phaseDurationsSec"].push_back(
+        orderd_json{phase_to_string[RdbenchPhase::Finalize], finalize_time_sec});
+    if (parsed.count("prettify") != 0U) {
+      std::cout << std::setw(4);
+    }
     std::cout << rdbench_result << std::endl;
   }
   return ret;
