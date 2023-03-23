@@ -566,7 +566,7 @@ orderd_json calc_result(
 
     phase_durations_json.push_back(orderd_json{phase_to_string[phase_durations[i].first], max});
   }
-  rdbench_result["initialTimeSec"] = phase_durations_json.front();
+  rdbench_result["initialTimeSec"] = phase_durations_json.front()[1];
   rdbench_result["finalizeTimeSec"] = nullptr;
   rdbench_result["phaseDurationsSec"] = phase_durations_json;
 
