@@ -18,6 +18,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <numeric>
+#include <optional>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -25,6 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "BitmapPlusPlus.hpp"
 #include "error.hpp"
 #include "mpix/MPIX_interface_proposal.h"
 #include "raii_types.hpp"
@@ -33,11 +35,11 @@
 
 using orderd_json = nlohmann::ordered_json;
 
-const double F = 0.04;
-const double k = 0.06075;
-const double dt = 0.2;
-const double Du = 0.05;
-const double Dv = 0.1;
+double F = 0.04;
+double k = 0.06075;
+double dt = 0.2;
+double Du = 0.05;
+double Dv = 0.1;
 
 typedef std::vector<double> vd;
 
@@ -69,6 +71,8 @@ struct RdbenchInfo {
   int my_begin_y;
   int my_end_x;
   int my_end_y;
+  std::optional<std::string> v_bitmap_path;
+  std::optional<std::string> u_bitmap_path;
   std::string output_prefix;
   std::string iot = "view";
   IOType iotype = IOType::View;
@@ -119,6 +123,19 @@ struct RdbenchInfo {
     info.interval = parsed["interval"].as<size_t>();
     info.L = parsed["L"].as<int>();
     info.verbose = parsed["verbose"].count() != 0U;
+    if (parsed.count("init_v_from_bitmap") != 0U) {
+      info.v_bitmap_path = parsed["init_v_from_bitmap"].as<std::string>();
+    }
+    if (parsed.count("init_u_from_bitmap") != 0U) {
+      info.u_bitmap_path = parsed["init_u_from_bitmap"].as<std::string>();
+    }
+
+    // set Gray-Scott model parameters
+    F = parsed["param_F"].as<double>();
+    k = parsed["param_k"].as<double>();
+    dt = parsed["param_dt"].as<double>();
+    Du = parsed["param_Du"].as<double>();
+    Dv = parsed["param_Dv"].as<double>();
 
     if (info.interval != 0) {
       info.write_phase_count = info.total_steps / info.interval + (info.initial_output ? 1 : 0);
@@ -245,20 +262,118 @@ struct RdbenchInfo {
   }
 };
 
+bmp::Bitmap crop_bitmap(const bmp::Bitmap &src, int max_width, int max_height) {
+  // Calculate the new dimensions by centering the crop area
+  int new_width = std::min(src.width(), max_width);
+  int new_height = std::min(src.height(), max_height);
+  int x_start = (src.width() - new_width) / 2;
+  int y_start = (src.height() - new_height) / 2;
+
+  // Create a new bitmap with the desired dimensions
+  bmp::Bitmap cropped(new_width, new_height);
+
+  // Copy pixels from the source image to the cropped image
+  for (int y = 0; y < new_height; ++y) {
+    for (int x = 0; x < new_width; ++x) {
+      int src_x = x_start + x;
+      int src_y = y_start + y;
+      cropped.set(x, y, src.get(src_x, src_y));
+    }
+  }
+
+  return cropped;
+}
+
+std::vector<double> convert_to_grayscale(const bmp::Bitmap &image, int &x_size, int &y_size) {
+  // Dimensions
+  x_size = image.width();
+  y_size = image.height();
+
+  // Vector to hold grayscale values
+  std::vector<double> grayscale_values;
+  grayscale_values.reserve(x_size * y_size);
+
+  // Convert each pixel to grayscale
+  for (int y = 0; y < y_size; ++y) {
+    for (int x = 0; x < x_size; ++x) {
+      const auto &pixel = image.get(x, y);
+      double gray = 0.3 * pixel.r + 0.59 * pixel.g + 0.11 * pixel.b;
+      grayscale_values.push_back(1. - gray / 255.);
+    }
+  }
+
+  return grayscale_values;
+}
+
+void print_vd(const vd &v, int width, int height) {
+  if (v.size() != width * height) {
+    std::cerr << "Error: The size of the vector does not match the specified dimensions."
+              << std::endl;
+    return;
+  }
+
+  std::cout << std::fixed << std::setprecision(3);
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      // Print each value in the vector, formatted to show 3 decimal places
+      std::cout << v[y * width + x] << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
 void init(vd &u, vd &v, RdbenchInfo &info) {
   int d = 3;
   const int L = info.L;
-  for (int giy = L / 2 - d; giy < L / 2 + d; giy++) {
-    for (int gix = L / 2 - d; gix < L / 2 + d; gix++) {
-      if (!info.is_inside(giy, gix)) continue;
-      u[info.g2c_idx(giy, gix)] = 0.7;
+
+  if (info.u_bitmap_path) {
+    int x_size, y_size;
+    auto u_bitmap = crop_bitmap(bmp::Bitmap{*info.u_bitmap_path}, L, L);
+    auto u_init = convert_to_grayscale(u_bitmap, x_size, y_size);
+    if(info.rank == 0 && info.verbose) {
+      std::cout << "initial u" << std::endl;
+      print_vd(u_init, x_size, y_size);
+    }
+    int u_offset_y = L / 2 - y_size / 2;
+    int u_offset_x = L / 2 - x_size / 2;
+    for (int giy = u_offset_y; giy < L / 2 + y_size / 2; giy++) {
+      for (int gix = u_offset_x; gix < L / 2 + x_size / 2; gix++) {
+        if (!info.is_inside(giy, gix)) continue;
+        // u[info.g2c_idx(giy, gix)] = u_init[(giy - u_offset_y) * x_size + (gix - u_offset_x)];
+        u[info.g2c_idx(giy, gix)] = u_init[(giy - u_offset_y) * x_size + (gix - u_offset_x)] > 0 ? 0.7 : 0;
+      }
+    }
+  } else {
+    for (int giy = L / 2 - d; giy < L / 2 + d; giy++) {
+      for (int gix = L / 2 - d; gix < L / 2 + d; gix++) {
+        if (!info.is_inside(giy, gix)) continue;
+        u[info.g2c_idx(giy, gix)] = 0.7;
+      }
     }
   }
-  d = 6;
-  for (int giy = L / 2 - d; giy < L / 2 + d; giy++) {
-    for (int gix = L / 2 - d; gix < L / 2 + d; gix++) {
-      if (!info.is_inside(giy, gix)) continue;
-      v[info.g2c_idx(giy, gix)] = 0.9;
+  if (info.v_bitmap_path) {
+    int x_size, y_size;
+    auto v_bitmap = crop_bitmap(bmp::Bitmap{*info.v_bitmap_path}, L, L);
+    auto v_init = convert_to_grayscale(v_bitmap, x_size, y_size);
+    if(info.rank == 0 && info.verbose) {
+      std::cout << "initial v" << std::endl;
+      print_vd(v_init, x_size, y_size);
+    }
+    int v_offset_y = L / 2 - y_size / 2;
+    int v_offset_x = L / 2 - x_size / 2;
+    for (int giy = v_offset_y; giy < L / 2 + y_size / 2; giy++) {
+      for (int gix = v_offset_x; gix < L / 2 + x_size / 2; gix++) {
+        if (!info.is_inside(giy, gix)) continue;
+        v[info.g2c_idx(giy, gix)] = v_init[(giy - v_offset_y) * x_size + (gix - v_offset_x)] > 0 ? 0.9 : 0;
+      }
+    }
+  } else {
+    d = 6;
+    for (int giy = L / 2 - d; giy < L / 2 + d; giy++) {
+      for (int gix = L / 2 - d; gix < L / 2 + d; gix++) {
+        if (!info.is_inside(giy, gix)) continue;
+        v[info.g2c_idx(giy, gix)] = 0.9;
+      }
     }
   }
 }
@@ -609,6 +724,8 @@ int main(int argc, char *argv[]) {
     ("xnp", "Number of processes in x-axis (0 == auto), is ignored if -t is set.", cxxopts::value<int>()->default_value("0"))
     ("ynp", "Number of processes in y-axis (0 == auto), is ignored if -t is set", cxxopts::value<int>()->default_value("0"))
     ("L,length", "Length of a edge of a square region", cxxopts::value<int>()->default_value("128"))
+    ("init_v_from_bitmap", "Initialize v from a bitmap file", cxxopts::value<std::string>())
+    ("init_u_from_bitmap", "Initialize u from a bitmap file", cxxopts::value<std::string>())
     ("o,output", "Prefix of output files", cxxopts::value<std::string>()->default_value("out/o_"))
     ("iotype",
       "manual / view / chunk\n"
@@ -625,6 +742,11 @@ int main(int argc, char *argv[]) {
     ("disable-initial-output", "Disable file output for initial state")
     ("nomkdir", "Disable output directory craetion using POSIX")
     ("prettify", "Prettify JSON output")
+    ("param_F", "Parameter F of the Gray-Scott model", cxxopts::value<double>()->default_value("0.04"))
+    ("param_k", "Parameter k of the Gray-Scott model", cxxopts::value<double>()->default_value("0.06075"))
+    ("param_dt", "Parameter dt of the Gray-Scott model", cxxopts::value<double>()->default_value("0.2"))
+    ("param_Du", "Parameter Du of the Gray-Scott model", cxxopts::value<double>()->default_value("0.05"))
+    ("param_Dv", "Parameter Dv of the Gray-Scott model", cxxopts::value<double>()->default_value("0.1"))
   ;
   // clang-format on
 

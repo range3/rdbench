@@ -27,3 +27,6 @@ spack install rdbench
 mkdir -p /path/to/output_dir
 mpirun -np 4 rdbench -o /path/to/output_dir/output_file_prefix_
 ```
+
+# Other demos
+![](https://raw.githubusercontent.com/range3/rdbench/master/rdbench-viz/viz2.gif)
