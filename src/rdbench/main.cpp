@@ -339,8 +339,7 @@ void init(vd &u, vd &v, RdbenchInfo &info) {
     for (int giy = u_offset_y; giy < L / 2 + y_size / 2; giy++) {
       for (int gix = u_offset_x; gix < L / 2 + x_size / 2; gix++) {
         if (!info.is_inside(giy, gix)) continue;
-        // u[info.g2c_idx(giy, gix)] = u_init[(giy - u_offset_y) * x_size + (gix - u_offset_x)];
-        u[info.g2c_idx(giy, gix)] = u_init[(giy - u_offset_y) * x_size + (gix - u_offset_x)] > 0 ? 0.7 : 0;
+        u[info.g2c_idx(giy, gix)] = u_init[(giy - u_offset_y) * x_size + (gix - u_offset_x)];
       }
     }
   } else {
@@ -364,7 +363,7 @@ void init(vd &u, vd &v, RdbenchInfo &info) {
     for (int giy = v_offset_y; giy < L / 2 + y_size / 2; giy++) {
       for (int gix = v_offset_x; gix < L / 2 + x_size / 2; gix++) {
         if (!info.is_inside(giy, gix)) continue;
-        v[info.g2c_idx(giy, gix)] = v_init[(giy - v_offset_y) * x_size + (gix - v_offset_x)] > 0 ? 0.9 : 0;
+        v[info.g2c_idx(giy, gix)] = v_init[(giy - v_offset_y) * x_size + (gix - v_offset_x)];
       }
     }
   } else {
