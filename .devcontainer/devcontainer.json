@@ -2,15 +2,38 @@
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.234.0/containers/cpp
 {
   "name": "C++",
-  "dockerComposeFile": ["./docker-compose.yaml"],
-  "service": "dev1",
-  "workspaceFolder": "/workspaces/rdbench",
-  "settings": {},
-  "extensions": [
-    "ms-vscode.cpptools",
-    "ms-vscode.cmake-tools",
-    "ms-python.python"
+  "dockerComposeFile": [
+    "./docker-compose.yaml"
   ],
+  "service": "h1",
+  "workspaceFolder": "/workspaces/rdbench",
+  "remoteEnv": {
+    "EDITOR": "${localEnv:EDITOR}"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash-login",
+        "terminal.integrated.profiles.linux.bash-login": {
+          "path": "bash",
+          "args": [
+            "-l"
+          ]
+        }
+      },
+      "extensions": [
+        "eamodio.gitlens",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter",
+        "KevinRose.vsc-python-indent",
+        "cheshirekow.cmake-format",
+        "GitHub.copilot"
+      ]
+    }
+  },
   "remoteUser": "vscode",
   "postCreateCommand": "sudo apt update",
   "postStartCommand": "sudo service ssh restart"

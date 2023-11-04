@@ -1,18 +1,17 @@
 version: "3.9"
-x-common:
-  &x-common
+x-common: &x-common
   build:
     context: .
     dockerfile: Dockerfile
   init: true
   environment:
-    MPI_HOSTS: d1,d2,d3,d4
+    MPI_HOSTS: h1,h2,h3,h4
   volumes:
     - ..:/workspaces/rdbench:cached
-    - spack:/home/vscode/.cache/spack
-    - dot-spack:/home/vscode/.spack
+    - spack-root:/home/vscode/.cache/spack
+    - spack-settings:/home/vscode/.spack
   networks:
-    dev_cpp_net:
+    - rdbench_net
   cap_add:
     - SYS_PTRACE
   security_opt:
@@ -20,49 +19,28 @@ x-common:
   privileged: true
   command: >
     bash -c "sudo service ssh restart && sleep infinity"
-  extra_hosts:
-    - d1:172.33.0.2
-    - d2:172.33.0.3
-    - d3:172.33.0.4
-    - d4:172.33.0.5
 
 services:
-  dev1:
+  h1:
     <<: *x-common
-    hostname: d1
-    networks:
-      dev_cpp_net:
-        ipv4_address: 172.33.0.2
-  dev2:
+    hostname: h1
+    container_name: rdbench-h1
+  h2:
     <<: *x-common
-    hostname: d2
-    networks:
-      dev_cpp_net:
-        ipv4_address: 172.33.0.3
-  dev3:
+    hostname: h2
+    container_name: rdbench-h2
+  h3:
     <<: *x-common
-    hostname: d3
-    networks:
-      dev_cpp_net:
-        ipv4_address: 172.33.0.4
-  dev4:
+    hostname: h3
+    container_name: rdbench-h3
+  h4:
     <<: *x-common
-    hostname: d4
-    networks:
-      dev_cpp_net:
-        ipv4_address: 172.33.0.5
+    hostname: h4
+    container_name: rdbench-h4
 
 networks:
-  dev_cpp_net:
-    name: dev_cpp_net
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.33.0.0/16
+  rdbench_net:
 
 volumes:
-  spack:
-    external: true
-  dot-spack:
-    external: true
+  spack-root:
+  spack-settings:
