@@ -39,7 +39,7 @@ def create_frame_image(data, cmap = "Blues", frame_number = None):
     # draw.text((10, 10), f'Frame {frame_number}', fill=(255, 255, 255))  # Use white color for text in RGB mode
     return img
 
-def generate_gif(input_dir, output_file, initial_duration, frame_duration, cmap, verbose):
+def generate_gif(input_dir, output_file, initial_duration, frame_duration, cmap, loop, verbose):
     input_files = sorted(list(Path(input_dir).glob('*.bin')))
     
     if not input_files:
@@ -64,8 +64,8 @@ def generate_gif(input_dir, output_file, initial_duration, frame_duration, cmap,
     
     images[0].save(
         output_file, save_all=True, append_images=images[1:], 
-        duration=[initial_duration] + [frame_duration] * (len(images) - 1),
-        loop=0
+        duration=[initial_duration + frame_duration] + [frame_duration] * (len(images) - 1),
+        loop=loop,
     )
 
     if verbose:
@@ -78,11 +78,12 @@ def main():
     parser.add_argument("--initial_duration", type=int, default=1000, help="Duration of the initial frame in milliseconds")
     parser.add_argument("--frame_duration", type=int, default=100, help="Duration of each frame in milliseconds")
     parser.add_argument("--cmap", type=str, default="Blues", help="Colormap to use for the frames (default: Blues)")
+    parser.add_argument("--loop", type=int, default=0, help="Number of loops for the GIF (default: 0, infinite loop)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output with progress")
 
     args = parser.parse_args()
 
-    generate_gif(args.input, args.output, args.initial_duration, args.frame_duration, args.cmap, args.verbose)
+    generate_gif(args.input, args.output, args.initial_duration, args.frame_duration, args.cmap, args.loop, args.verbose)
 
 if __name__ == "__main__":
     main()
