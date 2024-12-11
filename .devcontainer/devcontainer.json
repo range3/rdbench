@@ -1,0 +1,39 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/cpp
+{
+  "name": "C++ Development",
+  // "build": {
+  //   "dockerfile": "Dockerfile"
+  // },
+  "dockerComposeFile": "docker-compose.yaml",
+  "service": "h1",
+  "workspaceFolder": "/workspaces/rdbench",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "ms-vscode.cpptools",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "xaver.clang-format",
+        "cschlosser.doxdocgen",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "cmake.configureOnEdit": false,
+        "cmake.setBuildTypeOnMultiConfig": false,
+        "C_Cpp.intelliSenseEngine": "disabled",
+        "clangd.arguments": [
+          "--background-index",
+          "--compile-commands-dir=${workspaceFolder}/build/dev"
+        ],
+        "editor.formatOnSave": true,
+        "[cpp]": {
+          "editor.defaultFormatter": "xaver.clang-format"
+        }
+      }
+    }
+  }
+}

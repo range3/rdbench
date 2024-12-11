@@ -1,0 +1,23 @@
+{
+  "name": "rdbench",
+  "version-semver": "2.0.0",
+  "dependencies": [
+    {
+      "name": "fmt",
+      "version>=": "11.0.2"
+    }
+  ],
+  "default-features": [],
+  "features": {
+    "test": {
+      "description": "Dependencies for testing",
+      "dependencies": [
+        {
+          "name": "catch2",
+          "version>=": "3.7.0"
+        }
+      ]
+    }
+  },
+  "builtin-baseline": "eba7c6a894fce24146af4fdf161fef8e90dd6be3"
+}
