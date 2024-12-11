@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.14...3.31)
 
 include(cmake/prelude.cmake)
 
@@ -29,7 +29,8 @@ target_include_directories(
 target_compile_features(rdbench_lib PUBLIC cxx_std_20)
 
 find_package(fmt REQUIRED)
-target_link_libraries(rdbench_lib PRIVATE fmt::fmt)
+find_package(ByteSpan REQUIRED)
+target_link_libraries(rdbench_lib PRIVATE fmt::fmt ByteSpan::ByteSpan)
 
 # ---- Declare executable ----
 
