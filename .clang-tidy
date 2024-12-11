@@ -2,16 +2,22 @@
 # Enable ALL the things! Except not really
 # misc-non-private-member-variables-in-classes: the options don't do anything
 # modernize-use-nodiscard: too aggressive, attribute is situationally useful
-Checks: "*,\
-  -google-readability-todo,\
-  -altera-*,\
-  -fuchsia-*,\
-  fuchsia-multiple-inheritance,\
-  -llvm-header-guard,\
-  -llvm-include-order,\
-  -llvmlibc-*,\
-  -modernize-use-nodiscard,\
-  -misc-non-private-member-variables-in-classes"
+Checks: >-
+  *,
+  -google-readability-todo,
+  -altera-*,
+  -fuchsia-*,
+  fuchsia-multiple-inheritance,
+  -llvm-header-guard,
+  -llvm-include-order,
+  -llvmlibc-*,
+  -modernize-use-nodiscard,
+  -misc-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+
 WarningsAsErrors: ''
 CheckOptions:
   - key: 'bugprone-argument-comment.StrictMode'
@@ -55,6 +61,8 @@ CheckOptions:
   - key: 'readability-identifier-naming.ClassMemberCase'
     value: 'lower_case'
   - key: 'readability-identifier-naming.ClassMethodCase'
+    value: 'lower_case'
+  - key: 'readability-identifier-naming.ConceptCase'
     value: 'lower_case'
   - key: 'readability-identifier-naming.ConstantCase'
     value: 'lower_case'
@@ -112,14 +120,14 @@ CheckOptions:
     value: 'lower_case'
   - key: 'readability-identifier-naming.PrivateMemberCase'
     value: 'lower_case'
-  - key: 'readability-identifier-naming.PrivateMemberPrefix'
-    value: 'm_'
+  - key: 'readability-identifier-naming.PrivateMemberSuffix'
+    value: '_'
   - key: 'readability-identifier-naming.PrivateMethodCase'
     value: 'lower_case'
   - key: 'readability-identifier-naming.ProtectedMemberCase'
     value: 'lower_case'
-  - key: 'readability-identifier-naming.ProtectedMemberPrefix'
-    value: 'm_'
+  - key: 'readability-identifier-naming.ProtectedMemberSuffix'
+    value: '_'
   - key: 'readability-identifier-naming.ProtectedMethodCase'
     value: 'lower_case'
   - key: 'readability-identifier-naming.PublicMemberCase'

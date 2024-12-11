@@ -1,8 +1,5 @@
-#include "lib.hpp"
-
 #include <fmt/core.h>
 
-library::library()
-    : name {fmt::format("{}", "rdbench")}
-{
-}
+#include "lib.hpp"
+
+library::library() : name{fmt::format("{}", "rdbench")} {}

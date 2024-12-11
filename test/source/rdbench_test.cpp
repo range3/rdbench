@@ -2,8 +2,7 @@
 
 #include "lib.hpp"
 
-TEST_CASE("Name is rdbench", "[library]")
-{
-  auto const lib = library {};
+TEST_CASE("Name is rdbench", "[library]") {
+  auto const lib = library{};
   REQUIRE(lib.name == "rdbench");
 }
