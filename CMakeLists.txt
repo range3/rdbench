@@ -30,7 +30,18 @@ target_compile_features(rdbench_lib PUBLIC cxx_std_20)
 
 find_package(fmt REQUIRED)
 find_package(ByteSpan REQUIRED)
-target_link_libraries(rdbench_lib PRIVATE fmt::fmt ByteSpan::ByteSpan)
+find_package(cxxopts REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(MPI REQUIRED)
+find_package(kamping REQUIRED)
+target_link_libraries(rdbench_lib
+  PUBLIC
+    MPI::MPI_CXX
+    kamping::kamping
+    ByteSpan::ByteSpan
+  PRIVATE
+    fmt::fmt
+)
 
 # ---- Declare executable ----
 
@@ -41,7 +52,7 @@ set_property(TARGET rdbench_exe PROPERTY OUTPUT_NAME rdbench)
 
 target_compile_features(rdbench_exe PRIVATE cxx_std_20)
 
-target_link_libraries(rdbench_exe PRIVATE rdbench_lib)
+target_link_libraries(rdbench_exe PRIVATE rdbench_lib cxxopts::cxxopts nlohmann_json::nlohmann_json)
 
 # ---- Install rules ----
 

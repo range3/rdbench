@@ -1,13 +1,21 @@
 {
   "name": "rdbench",
   "version-semver": "2.0.0",
+  "builtin-baseline": "eba7c6a894fce24146af4fdf161fef8e90dd6be3",
   "dependencies": [
     {
       "name": "fmt",
       "version>=": "11.0.2"
+    },
+    {
+      "name": "cxxopts",
+      "version>=": "3.2.1"
+    },
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.11.3"
     }
   ],
-  "default-features": [],
   "features": {
     "test": {
       "description": "Dependencies for testing",
@@ -18,6 +26,5 @@
         }
       ]
     }
-  },
-  "builtin-baseline": "eba7c6a894fce24146af4fdf161fef8e90dd6be3"
+  }
 }
