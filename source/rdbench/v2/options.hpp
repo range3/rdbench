@@ -44,7 +44,7 @@ struct options {
   double param_dv = 0.1;
 
   // NOLINTNEXTLINE
-  static auto parse(int argc, const char* argv[]) -> options {
+  static auto parse(int argc, const char* const* argv) -> options {
     options opts;
 
     auto options = cxxopts::Options(

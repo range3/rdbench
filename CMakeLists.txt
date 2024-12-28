@@ -30,6 +30,7 @@ target_compile_features(rdbench_lib PUBLIC cxx_std_20)
 
 find_package(fmt REQUIRED)
 find_package(ByteSpan REQUIRED)
+find_package(cxxmpi REQUIRED)
 find_package(cxxopts REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(MPI REQUIRED)
@@ -39,6 +40,7 @@ target_link_libraries(rdbench_lib
     MPI::MPI_CXX
     kamping::kamping
     ByteSpan::ByteSpan
+    cxxmpi::cxxmpi
   PRIVATE
     fmt::fmt
 )
