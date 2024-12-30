@@ -40,8 +40,8 @@ struct options {
   double param_f = 0.04;
   double param_k = 0.06075;
   double param_dt = 0.2;
-  double param_du = 0.05;
-  double param_dv = 0.1;
+  double param_du = 0.1;
+  double param_dv = 0.05;
 
   // NOLINTNEXTLINE
   static auto parse(int argc, const char* const* argv) -> options {

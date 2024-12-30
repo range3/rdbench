@@ -11,3 +11,5 @@ CMakeUserPresets.json
 compile_commands.json
 tmp/
 .cache/
+.venv/
+__pycache__/

@@ -3,6 +3,7 @@
 #include <array>
 #include <format>
 #include <functional>
+#include <iostream>
 #include <string>
 
 #include <cxxmpi/dtype.hpp>
@@ -17,7 +18,7 @@ class io_strategy {
  public:
   explicit io_strategy(const options& opts,
                        const gray_scott::domain_type& domain)
-      : opts_{opts}, domain_type_{create_domain_dtype(domain)} {}
+      : opts_{opts}, tile_dtype_{create_tile_dtype(domain)} {}
   constexpr io_strategy(const io_strategy&) = delete;
   auto operator=(const io_strategy&) -> io_strategy& = delete;
   constexpr io_strategy(io_strategy&&) noexcept = default;
@@ -40,13 +41,13 @@ class io_strategy {
   virtual void write(cxxmpi::weak_file, const gray_scott&) const = 0;
 
   auto opts() const -> const options& { return opts_.get(); }
-  auto weak_domain_type() const -> cxxmpi::weak_dtype {
-    return cxxmpi::weak_dtype{domain_type_};
+  auto weak_tile_type() const -> cxxmpi::weak_dtype {
+    return cxxmpi::weak_dtype{tile_dtype_};
   }
 
  private:
   std::reference_wrapper<const options> opts_;
-  cxxmpi::dtype domain_type_;
+  cxxmpi::dtype tile_dtype_;
 
   auto file_path(const gray_scott& model, size_t idx) const -> std::string {
     return std::format("{}{}", opts().output, filename(model.domain(), idx));
@@ -58,17 +59,17 @@ class io_strategy {
                        domain.total_ny, domain.nx, domain.ny, idx);
   }
 
-  static auto create_domain_dtype(const gray_scott::domain_type& domain)
+  static auto create_tile_dtype(const gray_scott::domain_type& domain)
       -> cxxmpi::dtype {
-    auto data_type = cxxmpi::dtype{
+    auto tile_dtype = cxxmpi::dtype{
         cxxmpi::as_weak_dtype<double>(),
         std::array<int, 2>{static_cast<int>(domain.ny_with_halo()),
                            static_cast<int>(domain.nx_with_halo())},
         std::array<int, 2>{static_cast<int>(domain.ny),
                            static_cast<int>(domain.nx)},
         std::array<int, 2>{static_cast<int>(1), static_cast<int>(1)}};
-    data_type.commit();
-    return data_type;
+    tile_dtype.commit();
+    return tile_dtype;
   }
 };
 
@@ -86,16 +87,14 @@ class canonical_io final : public io_strategy {
 
  protected:
   void write(cxxmpi::weak_file file, const gray_scott& model) const override {
+    // model.print(std::cout);
+
     file.set_view(0, cxxmpi::as_weak_dtype<double>(),
                   cxxmpi::weak_dtype{file_view_type_});
     if (opts().collective) {
-      file.write_at_all(
-          0, std::span<const double>{model.u().data_handle(), model.u().size()},
-          weak_domain_type());
+      file.write_at_all(0, model.v().data_handle(), 1, weak_tile_type());
     } else {
-      file.write_at(
-          0, std::span<const double>{model.u().data_handle(), model.u().size()},
-          weak_domain_type());
+      file.write_at(0, model.v().data_handle(), 1, weak_tile_type());
     }
   }
 
@@ -133,15 +132,9 @@ class log_io final : public io_strategy {
                          * static_cast<int64_t>(model.domain().size())
                          * model.comm().rank();
     if (opts().collective) {
-      file.write_at_all(
-          ofs,
-          std::span<const double>{model.u().data_handle(), model.u().size()},
-          weak_domain_type());
+      file.write_at_all(ofs, model.v().data_handle(), 1, weak_tile_type());
     } else {
-      file.write_at(
-          ofs,
-          std::span<const double>{model.u().data_handle(), model.u().size()},
-          weak_domain_type());
+      file.write_at(ofs, model.v().data_handle(), 1, weak_tile_type());
     }
   }
 };

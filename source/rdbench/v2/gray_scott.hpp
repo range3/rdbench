@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstddef>
+#include <format>
+#include <iomanip>
+#include <ostream>
 #include <vector>
 
 #include <cxxmpi/cart_comm.hpp>
@@ -17,11 +20,11 @@ namespace rdbench::v2 {
 class gray_scott {
  public:
   using parameters_type = struct parameters {
-    double du = 0.05;    // diffusion rate of u
-    double dv = 0.1;     // diffusion rate of v
-    double f = 0.04;     // feed rate
-    double k = 0.06075;  // kill rate
-    double dt = 0.2;     // time step
+    double du;  // diffusion rate of u
+    double dv;  // diffusion rate of v
+    double f;   // feed rate
+    double k;   // kill rate
+    double dt;  // time step
     // dx = dy = 1.0     // grid spacing
   };
 
@@ -56,7 +59,7 @@ class gray_scott {
         domain_{create_domain(comm_, sz_tile_x, sz_tile_y)},
         neighbors_{comm_.neighbors_2d()},
         halo_type_{create_halo_type()},
-        u_buf_1_(domain_.size_with_halo(), 1.0),
+        u_buf_1_(domain_.size_with_halo(), 0.0),
         v_buf_1_(domain_.size_with_halo(), 0.0),
         u_buf_2_(domain_.size_with_halo()),
         v_buf_2_(domain_.size_with_halo()),
@@ -65,6 +68,26 @@ class gray_scott {
         v_{v_buf_1_.data(), extent_},
         u_next_{u_buf_2_.data(), extent_},
         v_next_{v_buf_2_.data(), extent_} {}
+
+  // void print(std::ostream& os) const {
+  //   os << std::format("domain: {}x{}+{}+{}\n", domain_.total_nx,
+  //                     domain_.total_ny, domain_.start_x, domain_.start_y);
+  //   os << std::format("u: {}x{}\n", u_.extent(1), u_.extent(0));
+  //   os << std::format("v: {}x{}\n", v_.extent(1), v_.extent(0));
+  //   os << u_buf_1_.size() << ' ' << v_buf_1_.size() << ' ' << u_buf_2_.size()
+  //      << ' ' << v_buf_2_.size() << '\n';
+  //   os << u_.data_handle() << ' ' << v_.data_handle() << ' '
+  //      << u_next_.data_handle() << ' ' << v_next_.data_handle() << '\n';
+  //   os << u_buf_1_.data() << ' ' << v_buf_1_.data() << ' ' << u_buf_2_.data()
+  //      << ' ' << v_buf_2_.data() << '\n';
+  //   os << std::fixed << std::setprecision(2);
+  //   for (size_t y = 0; y < u_.extent(0); ++y) {
+  //     for (size_t x = 0; x < u_.extent(1); ++x) {
+  //       os << u_(y, x) << ' ';
+  //     }
+  //     os << '\n';
+  //   }
+  // }
 
   auto comm() const -> const cxxmpi::cart_comm& { return comm_; }
   auto domain() const -> domain_type { return domain_; }
