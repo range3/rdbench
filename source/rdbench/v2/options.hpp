@@ -12,13 +12,13 @@ namespace rdbench::v2 {
 
 enum class file_layout {
   canonical,  // Standard data layout for visualization
-  log,        // Sequential log format for analysis
+  log,        // Sequential log format
 };
 
 struct options {
   // Tile partitioning settings
-  size_t nr_tiles_x = 1;
-  size_t nr_tiles_y = 1;
+  size_t nr_tiles_x = 0;
+  size_t nr_tiles_y = 0;
   size_t sz_tile_x = 1024;
   size_t sz_tile_y = 1024;
 
@@ -61,9 +61,9 @@ struct options {
 
       // Tile partitioning settings
       ("nr_tiles_x", "Number of tiles in x direction",
-       cxxopts::value<size_t>()->default_value("1"))
+       cxxopts::value<size_t>()->default_value("0"))
       ("nr_tiles_y", "Number of tiles in y direction",
-       cxxopts::value<size_t>()->default_value("1"))
+       cxxopts::value<size_t>()->default_value("0"))
       ("sz_tile_x", "Size of tile in x direction",
        cxxopts::value<size_t>()->default_value("128"))
       ("sz_tile_y", "Size of tile in y direction",

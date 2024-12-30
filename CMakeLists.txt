@@ -15,34 +15,29 @@ include(cmake/variables.cmake)
 
 # ---- Declare library ----
 
-add_library(
-    rdbench_lib OBJECT
-    source/lib.cpp
-)
+add_library(rdbench_lib INTERFACE)
 
 target_include_directories(
     rdbench_lib ${warning_guard}
-    PUBLIC
+    INTERFACE
     "\$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/source>"
 )
 
-target_compile_features(rdbench_lib PUBLIC cxx_std_20)
+target_compile_features(rdbench_lib INTERFACE cxx_std_20)
 
-find_package(fmt REQUIRED)
-find_package(ByteSpan REQUIRED)
+# find_package(fmt REQUIRED)
+# find_package(ByteSpan REQUIRED)
 find_package(cxxmpi REQUIRED)
 find_package(cxxopts REQUIRED)
-find_package(nlohmann_json REQUIRED)
+# find_package(nlohmann_json REQUIRED)
+find_package(mdspan REQUIRED)
 find_package(MPI REQUIRED)
-find_package(kamping REQUIRED)
+# find_package(kamping REQUIRED)
 target_link_libraries(rdbench_lib
-  PUBLIC
+  INTERFACE
     MPI::MPI_CXX
-    kamping::kamping
-    ByteSpan::ByteSpan
     cxxmpi::cxxmpi
-  PRIVATE
-    fmt::fmt
+    std::mdspan
 )
 
 # ---- Declare executable ----
@@ -54,7 +49,12 @@ set_property(TARGET rdbench_exe PROPERTY OUTPUT_NAME rdbench)
 
 target_compile_features(rdbench_exe PRIVATE cxx_std_20)
 
-target_link_libraries(rdbench_exe PRIVATE rdbench_lib cxxopts::cxxopts nlohmann_json::nlohmann_json)
+target_link_libraries(rdbench_exe
+  PRIVATE
+    rdbench_lib
+    cxxopts::cxxopts
+    # nlohmann_json::nlohmann_json
+)
 
 # ---- Install rules ----
 
