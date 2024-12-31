@@ -27,7 +27,7 @@ class gray_scott_factory {
                                               opts.sz_tile_x, opts.sz_tile_y);
     auto init_u = center_block_initializer{0.9, 12, 12};
     auto init_v = center_block_initializer{0.7, 6, 6};
-    model->init_field(init_u, init_v);
+    model->init_tile(init_u, init_v);
     return model;
   }
 

@@ -94,8 +94,8 @@ class gray_scott {
   auto u() const -> mdspan_2d { return u_; }
   auto v() const -> mdspan_2d { return v_; }
 
-  auto init_field(const field_initializer& init_u,
-                  const field_initializer& init_v) -> void {
+  auto init_tile(const tile_initializer& init_u,
+                 const tile_initializer& init_v) -> void {
     init_u.init(u_, domain_);
     init_v.init(v_, domain_);
   }
@@ -103,7 +103,7 @@ class gray_scott {
   void step() {
     exchange_halos();
     compute_next_state();
-    swap_fields();
+    swap_tiles();
   }
 
  private:
@@ -147,40 +147,40 @@ class gray_scott {
   }
 
   void exchange_halos_irecv(cxxmpi::request_group& requests,
-                            mdspan_2d view,
+                            mdspan_2d tile,
                             int tag_ofs) {
     const int tag_up = tag_ofs;
     const int tag_down = tag_ofs + 1;
     const int tag_left = tag_ofs + 2;
     const int tag_right = tag_ofs + 3;
 
-    comm_.irecv(std::span{&view(0, 1), domain_.nx}, neighbors_.up, tag_up,
+    comm_.irecv(std::span{&tile(0, 1), domain_.nx}, neighbors_.up, tag_up,
                 requests.add());
-    comm_.irecv(std::span{&view(domain_.ny_with_halo() - 1, 1), domain_.nx},
+    comm_.irecv(std::span{&tile(domain_.ny_with_halo() - 1, 1), domain_.nx},
                 neighbors_.down, tag_down, requests.add());
-    comm_.irecv(std::span<double, 1>{&view(1, 0), 1},
+    comm_.irecv(std::span<double, 1>{&tile(1, 0), 1},
                 cxxmpi::weak_dtype{halo_type_}, 1, neighbors_.left, tag_left,
                 requests.add());
-    comm_.irecv(std::span<double, 1>{&view(1, domain_.nx_with_halo() - 1), 1},
+    comm_.irecv(std::span<double, 1>{&tile(1, domain_.nx_with_halo() - 1), 1},
                 cxxmpi::weak_dtype{halo_type_}, 1, neighbors_.right, tag_right,
                 requests.add());
   }
 
-  void exchange_halos_send(mdspan_2d view, int tag_ofs) {
+  void exchange_halos_send(mdspan_2d tile, int tag_ofs) {
     const int tag_up = tag_ofs;
     const int tag_down = tag_ofs + 1;
     const int tag_left = tag_ofs + 2;
     const int tag_right = tag_ofs + 3;
 
-    comm_.send(std::span<const double>{&view(1, 1), domain_.nx}, neighbors_.up,
+    comm_.send(std::span<const double>{&tile(1, 1), domain_.nx}, neighbors_.up,
                tag_down);
-    comm_.send(std::span<const double>{&view(domain_.ny_with_halo() - 2, 1),
+    comm_.send(std::span<const double>{&tile(domain_.ny_with_halo() - 2, 1),
                                        domain_.nx},
                neighbors_.down, tag_up);
-    comm_.send(std::span<const double, 1>{&view(1, 1), 1},
+    comm_.send(std::span<const double, 1>{&tile(1, 1), 1},
                cxxmpi::weak_dtype{halo_type_}, 1, neighbors_.left, tag_right);
     comm_.send(
-        std::span<const double, 1>{&view(1, domain_.nx_with_halo() - 2), 1},
+        std::span<const double, 1>{&tile(1, domain_.nx_with_halo() - 2), 1},
         cxxmpi::weak_dtype{halo_type_}, 1, neighbors_.right, tag_left);
   }
 
@@ -211,7 +211,7 @@ class gray_scott {
     }
   }
 
-  void swap_fields() {
+  void swap_tiles() {
     std::swap(u_, u_next_);
     std::swap(v_, v_next_);
   }
