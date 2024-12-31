@@ -1,32 +1,34 @@
 #pragma once
 
+#include <algorithm>
+
 #include <experimental/mdspan>
 
 #include "rdbench/v2/domain.hpp"
 
 namespace rdbench::v2 {
-class tile_initializer {
+class tile_filler {
  public:
   using domain_type = struct domain;
 
-  tile_initializer() = default;
-  tile_initializer(const tile_initializer&) = default;
-  tile_initializer(tile_initializer&&) = default;
-  auto operator=(const tile_initializer&) -> tile_initializer& = default;
-  auto operator=(tile_initializer&&) -> tile_initializer& = default;
+  tile_filler() = default;
+  tile_filler(const tile_filler&) = default;
+  tile_filler(tile_filler&&) = default;
+  auto operator=(const tile_filler&) -> tile_filler& = default;
+  auto operator=(tile_filler&&) -> tile_filler& = default;
 
-  virtual ~tile_initializer() = default;
-  virtual void init(mdspan_2d tile, const domain_type& domain) const = 0;
+  virtual ~tile_filler() = default;
+  virtual void apply(mdspan_2d tile, const domain_type& domain) const = 0;
 };
 
-class center_block_initializer : public tile_initializer {
+class center_block_filler : public tile_filler {
  public:
-  explicit center_block_initializer(double value,
-                                    size_t block_size_x,
-                                    size_t block_size_y)
+  explicit center_block_filler(double value,
+                               size_t block_size_x,
+                               size_t block_size_y)
       : value_{value}, block_nx_{block_size_x}, block_ny_{block_size_y} {}
 
-  void init(mdspan_2d tile, const domain_type& domain) const override {
+  void apply(mdspan_2d tile, const domain_type& domain) const override {
     const auto block_nx = std::min(block_nx_, domain.total_nx);
     const auto block_ny = std::min(block_ny_, domain.total_ny);
     const auto start_x = domain.start_x;
@@ -50,6 +52,18 @@ class center_block_initializer : public tile_initializer {
   double value_{0.0};
   size_t block_nx_{0};
   size_t block_ny_{0};
+};
+
+class constant_filler : public tile_filler {
+ public:
+  explicit constant_filler(double value) : value_{value} {}
+
+  void apply(mdspan_2d tile, const domain_type& /*domain*/) const override {
+    std::fill(tile.data_handle(), tile.data_handle() + tile.size(), value_);
+  }
+
+ private:
+  double value_{0.0};
 };
 
 }  // namespace rdbench::v2

@@ -13,7 +13,7 @@
 #include <experimental/mdspan>
 
 #include "rdbench/v2/domain.hpp"
-#include "rdbench/v2/initializer.hpp"
+#include "rdbench/v2/tile_filler.hpp"
 
 namespace rdbench::v2 {
 
@@ -94,10 +94,12 @@ class gray_scott {
   auto u() const -> mdspan_2d { return u_; }
   auto v() const -> mdspan_2d { return v_; }
 
-  auto init_tile(const tile_initializer& init_u,
-                 const tile_initializer& init_v) -> void {
-    init_u.init(u_, domain_);
-    init_v.init(v_, domain_);
+  auto apply_tile_filler_u(const tile_filler& filler) -> void {
+    filler.apply(u_, domain_);
+  }
+
+  auto apply_tile_filler_v(const tile_filler& filler) -> void {
+    filler.apply(v_, domain_);
   }
 
   void step() {
