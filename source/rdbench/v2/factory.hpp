@@ -7,6 +7,7 @@
 #include <cxxmpi/comm.hpp>
 #include <cxxmpi/dims.hpp>
 
+#include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/gray_scott.hpp"
 #include "rdbench/v2/options.hpp"
 #include "rdbench/v2/tile_filler.hpp"
@@ -26,9 +27,9 @@ class gray_scott_factory {
                                                   opts.param_dt,
                                               },
                                               opts.sz_tile_x, opts.sz_tile_y);
-    model->apply_tile_filler_u(constant_filler{1.0});
-    // model->apply_tile_filler_u(center_block_filler{0.9, 12, 12});
-    model->apply_tile_filler_v(center_block_filler{0.7, 6, 6});
+    model->apply_tile_filler(constant_filler{1.0}, data_type::u);
+    // model->apply_tile_filler(center_block_filler{0.9, 12, 12}, data_type::u);
+    model->apply_tile_filler(center_block_filler{0.7, 6, 6}, data_type::v);
     return model;
   }
 

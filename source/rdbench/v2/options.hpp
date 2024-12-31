@@ -31,6 +31,8 @@ struct options {
   // I/O settings
   std::string output = "out/o_";
   file_layout layout = file_layout::canonical;
+  bool io_u = false;
+  bool io_v = true;
   bool collective = false;
   bool nosync = false;
   bool validate = false;
@@ -81,6 +83,8 @@ struct options {
        cxxopts::value<std::string>()->default_value("out/o_"))
       ("file_layout", "File layout type (canonical/log)",
        cxxopts::value<std::string>()->default_value("canonical"))
+      ("io_field", "field to I/O (u/v/both/none)",
+       cxxopts::value<std::string>()->default_value("v"))
       ("collective", "Enable collective I/O")
       ("nosync", "Disable sync after write")
       ("validate", "Enable write validation")
@@ -135,6 +139,23 @@ struct options {
         opts.layout = file_layout::log;
       } else {
         throw std::runtime_error("Invalid file layout: " + layout);
+      }
+      auto const io_field_str = result["io_field"].as<std::string>();
+      if (io_field_str == "u") {
+        opts.io_u = true;
+        opts.io_v = false;
+      } else if (io_field_str == "v") {
+        opts.io_u = false;
+        opts.io_v = true;
+      } else if (io_field_str == "both") {
+        opts.io_u = true;
+        opts.io_v = true;
+      } else if (io_field_str == "none") {
+        opts.io_u = false;
+        opts.io_v = false;
+      } else {
+        throw std::runtime_error(
+            "Invalid output field type. Choose from: u, v, both, none");
       }
 
       opts.collective = result.count("collective") != 0U;

@@ -6,6 +6,7 @@ namespace rdbench::v2 {
 
 using extent_2d = std::experimental::dextents<size_t, 2>;
 using mdspan_2d = std::experimental::mdspan<double, extent_2d>;
+using cmdspan_2d = std::experimental::mdspan<const double, extent_2d>;
 
 struct domain {
   size_t total_nx;  // total number of grid points in x
@@ -22,4 +23,7 @@ struct domain {
   constexpr auto size() const -> size_t { return nx * ny; }
   constexpr auto total_size() const -> size_t { return total_nx * total_ny; }
 };
+
+enum class data_type { u, v };
+
 }  // namespace rdbench::v2

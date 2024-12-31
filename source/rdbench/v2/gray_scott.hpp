@@ -13,6 +13,7 @@
 #include <experimental/mdspan>
 
 #include "rdbench/v2/domain.hpp"
+#include "rdbench/v2/io.hpp"
 #include "rdbench/v2/tile_filler.hpp"
 
 namespace rdbench::v2 {
@@ -94,18 +95,26 @@ class gray_scott {
   auto u() const -> mdspan_2d { return u_; }
   auto v() const -> mdspan_2d { return v_; }
 
-  auto apply_tile_filler_u(const tile_filler& filler) -> void {
-    filler.apply(u_, domain_);
-  }
-
-  auto apply_tile_filler_v(const tile_filler& filler) -> void {
-    filler.apply(v_, domain_);
+  auto apply_tile_filler(const tile_filler& filler, data_type type) -> void {
+    if (type == data_type::u) {
+      filler.apply(u_, domain_);
+    } else {
+      filler.apply(v_, domain_);
+    }
   }
 
   void step() {
     exchange_halos();
     compute_next_state();
     swap_tiles();
+  }
+
+  void ckpt(const io_strategy& io, size_t idx, data_type type) const {
+    if (type == data_type::u) {
+      io.write(cxxmpi::weak_comm{comm_}, u_, domain_, type, idx);
+    } else {
+      io.write(cxxmpi::weak_comm{comm_}, v_, domain_, type, idx);
+    }
   }
 
  private:

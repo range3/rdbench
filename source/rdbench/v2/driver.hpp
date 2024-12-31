@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 
+#include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/factory.hpp"
 #include "rdbench/v2/gray_scott.hpp"
 #include "rdbench/v2/io.hpp"
@@ -23,18 +24,14 @@ class gray_scott_driver {
     auto const interval = opt().interval;
 
     if (opt().init_output) {
-      io_->write_model_checkpoint(*model_, ckpt_idx++);
+      ckpt(ckpt_idx++, 0);
     }
 
     for (size_t step = 1; step <= total_steps; ++step) {
       model_->step();
 
       if (interval != 0 && step % interval == 0) {
-        io_->write_model_checkpoint(*model_, ckpt_idx++);
-        if (opt().verbose && model_->comm().rank() == 0) {
-          std::cout << "Checkpoint " << ckpt_idx - 1 << " at step " << step
-                    << '\n';
-        }
+        ckpt(ckpt_idx++, step);
       }
     }
   }
@@ -56,6 +53,19 @@ class gray_scott_driver {
         return std::make_unique<log_io>(opts, domain);
       default:
         throw std::runtime_error("Invalid file layout");
+    }
+  }
+
+  void ckpt(size_t idx, size_t step) {
+    if (opt().io_u) {
+      model_->ckpt(*io_, idx, data_type::u);
+    }
+    if (opt().io_v) {
+      model_->ckpt(*io_, idx, data_type::v);
+    }
+    if (opt().verbose && (opt().io_u || opt().io_v)
+        && model_->comm().rank() == 0) {
+      std::cout << "Checkpoint " << idx << " at step " << step << '\n';
     }
   }
 };
