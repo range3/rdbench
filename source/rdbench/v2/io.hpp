@@ -19,7 +19,7 @@ class io_strategy {
 
   constexpr io_strategy(const io_strategy&) = delete;
   auto operator=(const io_strategy&) -> io_strategy& = delete;
-  constexpr io_strategy(io_strategy&&) noexcept = default;
+  io_strategy(io_strategy&&) noexcept = default;
   auto operator=(io_strategy&&) noexcept -> io_strategy& = default;
   virtual ~io_strategy() = default;
 
@@ -59,7 +59,7 @@ class file_io_strategy : public io_strategy {
       : io_strategy(opts, domain) {}
   constexpr file_io_strategy(const file_io_strategy&) = delete;
   auto operator=(const file_io_strategy&) -> file_io_strategy& = delete;
-  constexpr file_io_strategy(file_io_strategy&&) noexcept = default;
+  file_io_strategy(file_io_strategy&&) noexcept = default;
   auto operator=(file_io_strategy&&) noexcept -> file_io_strategy& = default;
   ~file_io_strategy() override = default;
 
@@ -93,9 +93,9 @@ class file_io_strategy : public io_strategy {
     return std::format("{}{}", opts().output, filename(domain, type, idx));
   }
 
-  static constexpr auto filename(const domain& domain,
-                                 data_type type,
-                                 size_t idx) -> std::string {
+  static auto filename(const domain& domain,
+                       data_type type,
+                       size_t idx) -> std::string {
     const auto* const type_str = type == data_type::u ? "u" : "v";
     return std::format("{}-{}x{}-{}x{}-{:06d}.bin", type_str, domain.total_nx,
                        domain.total_ny, domain.nx, domain.ny, idx);
@@ -109,7 +109,7 @@ class canonical_io final : public file_io_strategy {
         file_view_type_{create_file_view_type(domain)} {}
   constexpr canonical_io(const canonical_io&) = delete;
   auto operator=(const canonical_io&) -> canonical_io& = delete;
-  constexpr canonical_io(canonical_io&&) noexcept = default;
+  canonical_io(canonical_io&&) noexcept = default;
   auto operator=(canonical_io&&) noexcept -> canonical_io& = default;
   ~canonical_io() override = default;
 
@@ -150,7 +150,7 @@ class log_io final : public file_io_strategy {
       : file_io_strategy(opts, domain) {}
   constexpr log_io(const log_io&) = delete;
   auto operator=(const log_io&) -> log_io& = delete;
-  constexpr log_io(log_io&&) noexcept = default;
+  log_io(log_io&&) noexcept = default;
   auto operator=(log_io&&) noexcept -> log_io& = default;
   ~log_io() override = default;
 

@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cstddef>
-#include <format>
-#include <iomanip>
-#include <ostream>
+// #include <execution>
+// #include <ranges>
 #include <vector>
 
 #include <cxxmpi/cart_comm.hpp>
@@ -105,6 +104,7 @@ class gray_scott {
 
   void step() {
     exchange_halos();
+    // compute_next_state_stdpar();
     compute_next_state();
     swap_tiles();
   }
@@ -195,32 +195,89 @@ class gray_scott {
         cxxmpi::weak_dtype{halo_type_}, 1, neighbors_.right, tag_left);
   }
 
+  struct compute_kernel {
+    double du, dv, f, k, dt;
+    mdspan_2d u, v, u_next, v_next;
+
+    void operator()(int y, int x) const {
+      const auto current_u = u(y, x);
+      const auto current_v = v(y, x);
+
+      // Laplacian
+      const auto laplacian_u =
+          u(y, x - 1) + u(y, x + 1) + u(y - 1, x) + u(y + 1, x) - 4 * current_u;
+      const auto laplacian_v =
+          v(y, x - 1) + v(y, x + 1) + v(y - 1, x) + v(y + 1, x) - 4 * current_v;
+
+      // Reaction
+      const auto uv2 = current_u * current_v * current_v;
+      const auto u_react = -uv2 + f * (1 - current_u);
+      const auto v_react = uv2 - (f + k) * current_v;
+
+      // Update
+      u_next(y, x) = current_u + dt * (du * laplacian_u + u_react);
+      v_next(y, x) = current_v + dt * (dv * laplacian_v + v_react);
+    }
+  };
+
   void compute_next_state() {
-    const auto nx = domain_.nx;
-    const auto ny = domain_.ny;
-    const auto du = params_.du;
-    const auto dv = params_.dv;
-    const auto f = params_.f;
-    const auto k = params_.k;
-    const auto dt = params_.dt;
+    const auto nx = static_cast<int>(domain_.nx);
+    const auto ny = static_cast<int>(domain_.ny);
+    const auto kernel = compute_kernel{
+        .du = params_.du,
+        .dv = params_.dv,
+        .f = params_.f,
+        .k = params_.k,
+        .dt = params_.dt,
+        .u = u_,
+        .v = v_,
+        .u_next = u_next_,
+        .v_next = v_next_,
+    };
 
-    for (size_t y = 1; y < ny + 1; ++y) {
-      for (size_t x = 1; x < nx + 1; ++x) {
-        const auto u = u_(y, x);
-        const auto v = v_(y, x);
-        const auto laplacian_u =
-            u_(y, x - 1) + u_(y, x + 1) + u_(y - 1, x) + u_(y + 1, x) - 4 * u;
-        const auto laplacian_v =
-            v_(y, x - 1) + v_(y, x + 1) + v_(y - 1, x) + v_(y + 1, x) - 4 * v;
-        const auto uv2 = u * v * v;
-        const auto u_react = -uv2 + f * (1 - u);
-        const auto v_react = uv2 - (f + k) * v;
-
-        u_next_(y, x) = u + dt * (du * laplacian_u + u_react);
-        v_next_(y, x) = v + dt * (dv * laplacian_v + v_react);
+    for (int y = 1; y < ny + 1; ++y) {
+      for (int x = 1; x < nx + 1; ++x) {
+        kernel(y, x);
       }
     }
   }
+
+#ifdef __cpp_lib_ranges_cartesian_product
+  void compute_next_state_stdpar() {
+    const auto nx = static_cast<int>(domain_.nx);
+    const auto ny = static_cast<int>(domain_.ny);
+    const auto kernel = compute_kernel{
+        .du = params_.du,
+        .dv = params_.dv,
+        .f = params_.f,
+        .k = params_.k,
+        .dt = params_.dt,
+        .u = u_,
+        .v = v_,
+        .u_next = u_next_,
+        .v_next = v_next_,
+    };
+
+    // work around for std::views::cartesian_product
+    // std::vector<std::pair<int, int>> indices;
+    // indices.reserve(static_cast<size_t>(nx * ny));
+    // for (auto y : std::views::iota(1, static_cast<int>(ny + 1))) {
+    //   for (auto x : std::views::iota(1, static_cast<int>(nx + 1))) {
+    //     indices.emplace_back(y, x);
+    //   }
+    // }
+
+    auto indices = std::views::cartesian_product(
+        std::views::iota(1, static_cast<int>(ny + 1)),
+        std::views::iota(1, static_cast<int>(nx + 1)));
+
+    std::for_each(std::execution::par, indices.begin(), indices.end(),
+                  [kernel](auto idx) {
+                    auto [y, x] = idx;
+                    kernel(y, x);
+                  });
+  }
+#endif
 
   void swap_tiles() {
     std::swap(u_, u_next_);

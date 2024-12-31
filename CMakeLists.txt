@@ -24,6 +24,7 @@ target_include_directories(
 )
 
 target_compile_features(rdbench_lib INTERFACE cxx_std_20)
+target_compile_definitions(rdbench_lib INTERFACE MDSPAN_USE_PAREN_OPERATOR=1)
 
 # find_package(fmt REQUIRED)
 # find_package(ByteSpan REQUIRED)
@@ -32,7 +33,8 @@ find_package(cxxopts REQUIRED)
 # find_package(nlohmann_json REQUIRED)
 find_package(mdspan REQUIRED)
 find_package(MPI REQUIRED)
-# find_package(kamping REQUIRED)
+# find_package(TBB REQUIRED)
+# find_package(ParallelSTL CONFIG REQUIRED)
 target_link_libraries(rdbench_lib
   INTERFACE
     MPI::MPI_CXX
