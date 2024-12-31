@@ -25,7 +25,7 @@ class gray_scott_factory {
                                                   opts.param_dt,
                                               },
                                               opts.sz_tile_x, opts.sz_tile_y);
-    auto init_u = center_block_initializer{0.9, 6, 6};
+    auto init_u = center_block_initializer{0.9, 12, 12};
     auto init_v = center_block_initializer{0.7, 6, 6};
     model->init_field(init_u, init_v);
     return model;
@@ -74,7 +74,7 @@ class gray_scott_factory {
                    "typical Turing patterns\n";
     }
 
-    if (opts.param_du >= opts.param_dv) {
+    if (opts.param_du <= opts.param_dv) {
       std::cerr << "Warning: Du should typically be less than Dv for pattern "
                    "formation\n";
     }

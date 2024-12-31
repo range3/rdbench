@@ -92,9 +92,9 @@ class canonical_io final : public io_strategy {
     file.set_view(0, cxxmpi::as_weak_dtype<double>(),
                   cxxmpi::weak_dtype{file_view_type_});
     if (opts().collective) {
-      file.write_at_all(0, model.v().data_handle(), 1, weak_tile_type());
+      file.write_at_all(0, model.u().data_handle(), 1, weak_tile_type());
     } else {
-      file.write_at(0, model.v().data_handle(), 1, weak_tile_type());
+      file.write_at(0, model.u().data_handle(), 1, weak_tile_type());
     }
   }
 
@@ -132,9 +132,9 @@ class log_io final : public io_strategy {
                          * static_cast<int64_t>(model.domain().size())
                          * model.comm().rank();
     if (opts().collective) {
-      file.write_at_all(ofs, model.v().data_handle(), 1, weak_tile_type());
+      file.write_at_all(ofs, model.u().data_handle(), 1, weak_tile_type());
     } else {
-      file.write_at(ofs, model.v().data_handle(), 1, weak_tile_type());
+      file.write_at(ofs, model.u().data_handle(), 1, weak_tile_type());
     }
   }
 };

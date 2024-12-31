@@ -31,8 +31,9 @@ class gray_scott_driver {
 
       if (interval != 0 && step % interval == 0) {
         io_->write_model_checkpoint(*model_, ckpt_idx++);
-        if (opt().verbose) {
-          std::cout << "Checkpoint " << ckpt_idx << " at step " << step << '\n';
+        if (opt().verbose && model_->comm().rank() == 0) {
+          std::cout << "Checkpoint " << ckpt_idx - 1 << " at step " << step
+                    << '\n';
         }
       }
     }

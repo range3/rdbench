@@ -93,9 +93,9 @@ struct options {
       ("param_dt", "Time step size",
        cxxopts::value<double>()->default_value("0.2"))
       ("param_Du", "Diffusion coefficient of U",
-       cxxopts::value<double>()->default_value("0.05"))
+       cxxopts::value<double>()->default_value("0.1"))
       ("param_Dv", "Diffusion coefficient of V",
-       cxxopts::value<double>()->default_value("0.1"));
+       cxxopts::value<double>()->default_value("0.05"));
     // clang-format on
 
     try {
