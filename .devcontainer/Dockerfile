@@ -65,6 +65,7 @@ RUN \
     perl \
     libssl-dev \
     libopenmpi-dev \
+    libtbb-dev \
   # Clean up
   && apt-get autoremove -y \
   && apt-get clean -y \
