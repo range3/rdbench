@@ -11,7 +11,9 @@ include(Catch)
 
 # ---- Tests ----
 
-add_executable(rdbench_test source/rdbench_test.cpp)
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/*_test.cpp")
+add_executable(rdbench_test ${TEST_SOURCES})
 target_link_libraries(
     rdbench_test PRIVATE
     rdbench_lib
