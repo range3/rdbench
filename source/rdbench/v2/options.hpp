@@ -7,6 +7,7 @@
 #include <string>
 
 #include <cxxopts.hpp>
+#include <nlohmann/json.hpp>
 
 namespace rdbench::v2 {
 
@@ -183,6 +184,47 @@ struct options {
       throw std::runtime_error("Model parameters must be positive");
     }
   }
+
+  auto nr_files() const -> size_t {
+    if (interval == 0) {
+      return 0;
+    }
+    return (steps / interval + (init_output ? 1 : 0))
+         * (static_cast<size_t>(io_u) + static_cast<size_t>(io_v));
+  }
 };
 
 }  // namespace rdbench::v2
+
+namespace nlohmann {
+
+template <>
+struct adl_serializer<rdbench::v2::options> {
+  static void to_json(ordered_json& j, const rdbench::v2::options& opt) {
+    j = ordered_json{
+        {"nrTilesX", opt.nr_tiles_x},
+        {"nrTilesY", opt.nr_tiles_y},
+        {"szTileX", opt.sz_tile_x},
+        {"szTileY", opt.sz_tile_y},
+        {"steps", opt.steps},
+        {"interval", opt.interval},
+        {"initOutput", opt.init_output},
+        {"nrFiles", opt.nr_files()},
+        {"verbose", opt.verbose},
+        {"output", opt.output},
+        {"layout", opt.layout == rdbench::v2::file_layout::canonical
+                       ? "canonical"
+                       : "log"},
+        {"ioU", opt.io_u},
+        {"ioV", opt.io_v},
+        {"collective", opt.collective},
+        {"noSync", opt.nosync},
+        {"paramF", opt.param_f},
+        {"paramK", opt.param_k},
+        {"paramDt", opt.param_dt},
+        {"paramDu", opt.param_du},
+        {"paramDv", opt.param_dv}};
+  }
+};
+
+}  // namespace nlohmann

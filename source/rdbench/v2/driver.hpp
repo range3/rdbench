@@ -3,7 +3,6 @@
 #include <iostream>
 #include <memory>
 
-#include "prof/event.hpp"
 #include "prof/recorder.hpp"
 #include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/factory.hpp"
@@ -43,6 +42,8 @@ class gray_scott_driver {
     }
   }
 
+  auto model() const -> const gray_scott& { return *model_; }
+
  private:
   std::reference_wrapper<const options> opts_;
   std::unique_ptr<gray_scott> model_;
@@ -74,6 +75,9 @@ class gray_scott_driver {
         && model_->comm().rank() == 0) {
       std::cout << "Checkpoint " << idx << " at step " << step << '\n';
     }
+    // Ensure all ranks have finished writing before continuing
+    // This is necessary for the profiler to correctly measure I/O time
+    model_->comm().barrier();
   }
 };
 
