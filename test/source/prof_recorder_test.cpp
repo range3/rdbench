@@ -1,6 +1,5 @@
 #include <functional>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -66,11 +65,6 @@ TEST_CASE("recorder basic functionality", "[recorder]") {
 
     CHECK_FALSE(recorder.is_running());
     CHECK(recorder.total_time() > prof::event_base::duration::zero());
-  }
-
-  SECTION("cannot start twice") {
-    auto running = recorder.start();
-    CHECK_THROWS_AS(recorder.start(), std::logic_error);
   }
 
   SECTION("phase switching") {

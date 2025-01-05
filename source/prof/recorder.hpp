@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <vector>
 
@@ -30,7 +31,7 @@ class recorder {
 
   [[nodiscard]]
   auto is_running() const noexcept -> bool {
-    return running_;
+    return running_count_ > 0;
   }
 
   [[nodiscard]] auto total_time() const -> duration { return total_time_; }
@@ -55,6 +56,22 @@ class recorder {
   }
 
  private:
+  auto begin_recording() -> bool {
+    if (running_count_.fetch_add(1, std::memory_order_acq_rel) == 0) {
+      sw_.reset();
+      return true;
+    }
+    return false;
+  }
+
+  auto end_recording() -> bool {
+    if (running_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      stop();
+      return true;
+    }
+    return false;
+  }
+
   void stop() noexcept {
     auto d = sw_.get();
     if (current_phase_ != nullptr) {
@@ -62,33 +79,29 @@ class recorder {
       current_phase_ = nullptr;
     }
     total_time_ += d;
-    running_ = false;
   }
 
   template <typename Phase>
   void switch_phase() {
-    auto& next_phase = Phase::instance();
+    auto d = sw_.get_and_reset();
     if (current_phase_ != nullptr) {
-      auto d = sw_.get_and_reset();
       current_phase_->add(d);
-      total_time_ += d;
-    } else {
-      sw_.reset();
     }
-    current_phase_ = &next_phase;
+    total_time_ += d;
+    current_phase_ = &Phase::instance();
   }
 
   std::vector<std::reference_wrapper<event_base>> events_;
   stopwatch_type sw_;
   duration total_time_{};
   event_base* current_phase_{};
-  bool running_{false};
+  std::atomic<std::size_t> running_count_{0};
 };
 
 class running_recorder {
  public:
-  explicit running_recorder(recorder& r) : recorder_{r} {}
-  ~running_recorder() noexcept { recorder_.get().stop(); }
+  running_recorder() { recorder::instance().begin_recording(); }
+  ~running_recorder() noexcept { recorder::instance().end_recording(); }
   running_recorder(const running_recorder&) = delete;
   auto operator=(const running_recorder&) -> running_recorder& = delete;
   running_recorder(running_recorder&&) = delete;
@@ -96,20 +109,13 @@ class running_recorder {
 
   template <typename Phase>
   void switch_phase() {
-    recorder_.get().switch_phase<Phase>();
+    recorder::instance().switch_phase<Phase>();
   }
-
- private:
-  std::reference_wrapper<recorder> recorder_;
 };
 
+// NOLINTNEXTLINE
 inline auto recorder::start() -> running_recorder {
-  if (is_running()) {
-    throw std::logic_error{"recorder is already running"};
-  }
-  running_ = true;
-  sw_.reset();
-  return running_recorder{*this};
+  return running_recorder{};
 }
 
 }  // namespace prof
