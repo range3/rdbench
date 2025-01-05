@@ -102,4 +102,21 @@ class event : public event_base {
   }
 };
 
+template <typename EventType>
+class scoped_event {
+ public:
+  using event_type = EventType;
+  using stopwatch_type = event_base::stopwatch_type;
+
+  scoped_event() = default;
+  scoped_event(const scoped_event&) = delete;
+  auto operator=(const scoped_event&) -> scoped_event& = delete;
+  scoped_event(scoped_event&&) = delete;
+  auto operator=(scoped_event&&) -> scoped_event& = delete;
+  ~scoped_event() { event_type::instance().add(sw_.get()); }
+
+ private:
+  stopwatch_type sw_;
+};
+
 }  // namespace prof

@@ -45,7 +45,7 @@ class basic_stopwatch {
     start_time_ = new_start_time;
   }
 
-  typename clock::time_point start_time_;
+  typename clock::time_point start_time_{clock::now()};
 };
 
 using stopwatch =

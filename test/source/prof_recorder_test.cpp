@@ -114,6 +114,10 @@ TEST_CASE("recorder with text formatter", "[recorder][formatter]") {
     running.switch_phase<event_registry::test_event_2>();
     std::this_thread::sleep_for(50ms);
   }
+  {
+    const prof::scoped_event<event_registry::test_event_1> event_scope;
+    std::this_thread::sleep_for(100ms);
+  }
 
   auto formatted = recorder.format<prof::text_formatter>();
   std::cout << formatted << '\n';
