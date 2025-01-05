@@ -3,16 +3,17 @@
 
 #include <cxxmpi/error.hpp>
 #include <cxxmpi/universe.hpp>
-// #include <kamping/communicator.hpp>
-// #include <kamping/environment.hpp>
 
 #include "rdbench/v2/driver.hpp"
 #include "rdbench/v2/options.hpp"
 
+// inline constexpr auto IO_EVENT = prof::event_name{"IO"};
+
 auto main(int argc, char** argv) -> int {
   try {
-    // const kamping::Environment env;
-    // auto const& comm = kamping::comm_world();
+    // auto& recorder = prof::recorder::instance();
+
+    // recorder.register_event(prof::singleton<prof::event<IO_EVENT>>::instance());
     const cxxmpi::universe univ(argc, argv);
     auto opt = rdbench::v2::options::parse(argc, argv);
     auto driver = rdbench::v2::gray_scott_driver(opt);
