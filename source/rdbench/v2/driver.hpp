@@ -3,11 +3,14 @@
 #include <iostream>
 #include <memory>
 
+#include "prof/event.hpp"
+#include "prof/recorder.hpp"
 #include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/factory.hpp"
 #include "rdbench/v2/gray_scott.hpp"
 #include "rdbench/v2/io.hpp"
 #include "rdbench/v2/options.hpp"
+#include "rdbench/v2/profiler.hpp"
 
 namespace rdbench::v2 {
 
@@ -19,18 +22,22 @@ class gray_scott_driver {
         io_{create_io_strategy(opts, model_->domain())} {}
 
   void run() {
+    auto recorder = prof::recorder::instance().start();
     auto ckpt_idx = size_t{0};
     auto const total_steps = opt().steps;
     auto const interval = opt().interval;
 
     if (opt().init_output) {
+      recorder.switch_phase<profiler::io_phase>();
       ckpt(ckpt_idx++, 0);
     }
 
     for (size_t step = 1; step <= total_steps; ++step) {
+      recorder.switch_phase<profiler::compute_phase>();
       model_->step();
 
       if (interval != 0 && step % interval == 0) {
+        recorder.switch_phase<profiler::io_phase>();
         ckpt(ckpt_idx++, step);
       }
     }

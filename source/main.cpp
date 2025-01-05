@@ -1,23 +1,32 @@
 #include <exception>
+#include <iomanip>
 #include <iostream>
 
+#include <cxxmpi/comm.hpp>
 #include <cxxmpi/error.hpp>
 #include <cxxmpi/universe.hpp>
 
+// #include "prof/formatter.hpp"
+#include "prof/json_formatter.hpp"
 #include "rdbench/v2/driver.hpp"
 #include "rdbench/v2/options.hpp"
-
-// inline constexpr auto IO_EVENT = prof::event_name{"IO"};
+#include "rdbench/v2/profiler.hpp"
 
 auto main(int argc, char** argv) -> int {
   try {
-    // auto& recorder = prof::recorder::instance();
-
-    // recorder.register_event(prof::singleton<prof::event<IO_EVENT>>::instance());
+    rdbench::v2::profiler::init();
     const cxxmpi::universe univ(argc, argv);
     auto opt = rdbench::v2::options::parse(argc, argv);
     auto driver = rdbench::v2::gray_scott_driver(opt);
     driver.run();
+
+    if (cxxmpi::comm_world().rank() == 0) {
+      if (opt.prettify) {
+        std::cout << std::setw(4);
+      }
+      std::cout << prof::recorder::instance().format<prof::json_formatter>()
+                << '\n';
+    }
   } catch (const cxxmpi::mpi_error& e) {
     std::cerr << "MPI error: " << e.what() << '\n';
     return 1;
