@@ -1,10 +1,10 @@
+#include <chrono> // NOLINT
 #include <functional>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include <bits/chrono.h>
 #include <catch2/catch_test_macros.hpp>
 
 #include "prof/event.hpp"
@@ -60,7 +60,7 @@ TEST_CASE("recorder basic functionality", "[recorder]") {
     {
       auto running = recorder.start();
       CHECK(recorder.is_running());
-      std::this_thread::sleep_for(100ms);
+      std::this_thread::sleep_for(100ms); // NOLINT
     }  // running goes out of scope, stops recording
 
     CHECK_FALSE(recorder.is_running());
@@ -70,13 +70,13 @@ TEST_CASE("recorder basic functionality", "[recorder]") {
   SECTION("phase switching") {
     {
       auto running = recorder.start();
-      std::this_thread::sleep_for(50ms);
+      std::this_thread::sleep_for(50ms); // NOLINT
 
       running.switch_phase<event_registry::test_event_1>();
-      std::this_thread::sleep_for(50ms);
+      std::this_thread::sleep_for(50ms); // NOLINT
 
       running.switch_phase<event_registry::test_event_2>();
-      std::this_thread::sleep_for(50ms);
+      std::this_thread::sleep_for(50ms); // NOLINT
     }
 
     CHECK(event_registry::test_event_1::instance().count() == 1);
@@ -86,7 +86,7 @@ TEST_CASE("recorder basic functionality", "[recorder]") {
   SECTION("clear functionality") {
     {
       auto running = recorder.start();
-      std::this_thread::sleep_for(100ms);
+      std::this_thread::sleep_for(100ms); // NOLINT
     }
 
     CHECK(recorder.total_time() > prof::event_base::duration::zero());
@@ -103,14 +103,14 @@ TEST_CASE("recorder with text formatter", "[recorder][formatter]") {
   {
     auto running = recorder.start();
     running.switch_phase<event_registry::test_event_1>();
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(100ms); // NOLINT
 
     running.switch_phase<event_registry::test_event_2>();
-    std::this_thread::sleep_for(50ms);
+    std::this_thread::sleep_for(50ms); // NOLINT
   }
   {
     const prof::scoped_event<event_registry::test_event_1> event_scope;
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(100ms); // NOLINT
   }
 
   auto formatted = recorder.format<prof::text_formatter>();

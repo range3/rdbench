@@ -1,6 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <iomanip>
+#include <sstream>
 
 #include <prof/event.hpp>
 
