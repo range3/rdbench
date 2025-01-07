@@ -1,11 +1,11 @@
 #pragma once
 
 #include <chrono>
-#include <format>
 #include <string>
 
 #include <cxxmpi/cart_comm.hpp>
 #include <cxxmpi/comm.hpp>
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
 #include "rdbench/v2/options.hpp"
@@ -29,7 +29,7 @@ inline auto format_iso8601_with_timezone() -> std::string {
   int offset_minutes = static_cast<int>(std::difftime(local, utc)) / 60;
 
   // ISO8601
-  return std::format("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{:+03d}:{:02}",
+  return fmt::format("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{:+03d}:{:02}",
                      now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday,
                      now_tm.tm_hour, now_tm.tm_min, now_tm.tm_sec,
                      offset_minutes / 60, std::abs(offset_minutes % 60));

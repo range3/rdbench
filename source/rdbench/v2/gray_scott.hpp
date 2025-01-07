@@ -69,26 +69,6 @@ class gray_scott {
         u_next_{u_buf_2_.data(), extent_},
         v_next_{v_buf_2_.data(), extent_} {}
 
-  // void print(std::ostream& os) const {
-  //   os << std::format("domain: {}x{}+{}+{}\n", domain_.total_nx,
-  //                     domain_.total_ny, domain_.start_x, domain_.start_y);
-  //   os << std::format("u: {}x{}\n", u_.extent(1), u_.extent(0));
-  //   os << std::format("v: {}x{}\n", v_.extent(1), v_.extent(0));
-  //   os << u_buf_1_.size() << ' ' << v_buf_1_.size() << ' ' << u_buf_2_.size()
-  //      << ' ' << v_buf_2_.size() << '\n';
-  //   os << u_.data_handle() << ' ' << v_.data_handle() << ' '
-  //      << u_next_.data_handle() << ' ' << v_next_.data_handle() << '\n';
-  //   os << u_buf_1_.data() << ' ' << v_buf_1_.data() << ' ' << u_buf_2_.data()
-  //      << ' ' << v_buf_2_.data() << '\n';
-  //   os << std::fixed << std::setprecision(2);
-  //   for (size_t y = 0; y < u_.extent(0); ++y) {
-  //     for (size_t x = 0; x < u_.extent(1); ++x) {
-  //       os << u_(y, x) << ' ';
-  //     }
-  //     os << '\n';
-  //   }
-  // }
-
   auto comm() const -> const cxxmpi::cart_comm& { return comm_; }
   auto domain() const -> domain_type { return domain_; }
   auto u() const -> mdspan_2d { return u_; }

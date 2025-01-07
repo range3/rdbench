@@ -1,11 +1,11 @@
 #pragma once
 #include <array>
-#include <format>
 #include <functional>
 #include <string>
 
 #include <cxxmpi/dtype.hpp>
 #include <cxxmpi/file.hpp>
+#include <fmt/format.h>
 
 #include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/options.hpp"
@@ -90,14 +90,14 @@ class file_io_strategy : public io_strategy {
   auto file_path(const domain& domain,
                  data_type type,
                  size_t idx) const -> std::string {
-    return std::format("{}{}", opts().output, filename(domain, type, idx));
+    return fmt::format("{}{}", opts().output, filename(domain, type, idx));
   }
 
   static auto filename(const domain& domain,
                        data_type type,
                        size_t idx) -> std::string {
     const auto* const type_str = type == data_type::u ? "u" : "v";
-    return std::format("{}-{}x{}-{}x{}-{:06d}.bin", type_str, domain.total_nx,
+    return fmt::format("{}-{}x{}-{}x{}-{:06d}.bin", type_str, domain.total_nx,
                        domain.total_ny, domain.nx, domain.ny, idx);
   }
 };

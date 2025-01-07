@@ -1,11 +1,11 @@
 #pragma once
 
-#include <format>
 #include <memory>
 
 #include <cxxmpi/cart_comm.hpp>
 #include <cxxmpi/comm.hpp>
 #include <cxxmpi/dims.hpp>
+#include <fmt/format.h>
 
 #include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/gray_scott.hpp"
@@ -49,7 +49,7 @@ class gray_scott_factory {
     if (static_cast<size_t>(dims[0]) * static_cast<size_t>(dims[1])
         != world.size()) {
       throw std::runtime_error(
-          std::format("Invalid number of processes for {}x{} grid: {}",
+          fmt::format("Invalid number of processes for {}x{} grid: {}",
                       opts.nr_tiles_x, opts.nr_tiles_y, world.size()));
     }
 
@@ -90,7 +90,7 @@ class gray_scott_factory {
       throw std::runtime_error("Time step dt must be positive");
     }
     if (opts.param_dt > max_stable_dt) {
-      throw std::runtime_error(std::format(
+      throw std::runtime_error(fmt::format(
           "Time step {} exceeds maximum stable value {} (CFL condition)",
           opts.param_dt, max_stable_dt));
     }
