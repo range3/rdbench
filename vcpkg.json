@@ -4,10 +4,6 @@
   "builtin-baseline": "eba7c6a894fce24146af4fdf161fef8e90dd6be3",
   "dependencies": [
     {
-      "name": "fmt",
-      "version>=": "11.0.2"
-    },
-    {
       "name": "cxxopts",
       "version>=": "3.2.1"
     },
