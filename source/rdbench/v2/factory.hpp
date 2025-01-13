@@ -77,7 +77,7 @@ class gray_scott_factory {
     }
 
     if (opts.param_du <= opts.param_dv) {
-      std::cerr << "Warning: Du should typically be less than Dv for pattern "
+      std::cerr << "Warning: Du should typically be greater than Dv for pattern "
                    "formation\n";
     }
 
