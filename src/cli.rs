@@ -1,4 +1,5 @@
-use clap::{Parser, ValueEnum};
+use clap::Parser;
+use clap::ValueEnum;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -56,6 +57,10 @@ pub struct Cli {
 }
 
 impl Cli {
+    pub fn from_args() -> Self {
+        Self::parse()
+    }
+
     pub fn validate_parameters(&self) -> Result<(), String> {
         if self.param_f < 0.0
             || self.param_k < 0.0
@@ -68,6 +73,7 @@ impl Cli {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn nr_files(&self) -> usize {
         if self.interval == 0 {
             return 0;
@@ -97,10 +103,12 @@ pub enum IoField {
 }
 
 impl IoField {
+    #[allow(dead_code)]
     pub fn should_io_u(&self) -> bool {
         matches!(self, IoField::U | IoField::Both)
     }
 
+    #[allow(dead_code)]
     pub fn should_io_v(&self) -> bool {
         matches!(self, IoField::V | IoField::Both)
     }
