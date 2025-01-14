@@ -1,0 +1,40 @@
+x-build: &x-build
+  context: .
+  dockerfile: Dockerfile
+
+x-common: &x-common
+  image: rdbench-rust:latest
+  init: true
+  environment:
+    MPI_HOSTS: h1,h2,h3,h4
+  volumes:
+    - ..:/workspaces/rdbench-rust:cached
+  cap_add:
+    - SYS_PTRACE
+  security_opt:
+    - seccomp:unconfined
+  privileged: true
+  command: >
+    bash -c "sudo service ssh restart && sleep infinity"
+
+services:
+  h1:
+    <<: *x-common
+    hostname: h1
+    container_name: rdbench-rust-h1
+    build: *x-build
+
+  h2:
+    <<: *x-common
+    hostname: h2
+    container_name: rdbench-rust-h2
+
+  h3:
+    <<: *x-common
+    hostname: h3
+    container_name: rdbench-rust-h3
+
+  h4:
+    <<: *x-common
+    hostname: h4
+    container_name: rdbench-rust-h4
