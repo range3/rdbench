@@ -12,6 +12,7 @@ RUN apt-get update \
     libssl-dev \
     libopenmpi-dev \
     libtbb-dev \
+    libclang-dev \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
