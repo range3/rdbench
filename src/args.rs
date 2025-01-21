@@ -1,12 +1,16 @@
 use clap::Parser;
 use clap::ValueEnum;
 
+pub fn parse() -> Args {
+    Args::parse()
+}
+
 #[derive(Parser, Debug)]
 #[command(
     version,
     about = "Benchmark for MPI-IO using Gray-Scott reaction-diffusion system"
 )]
-pub struct Cli {
+pub struct Args {
     // Tile partitioning settings
     #[arg(long, default_value = "0")]
     pub nr_tiles_x: usize,
@@ -56,23 +60,7 @@ pub struct Cli {
     pub param_dv: f64,
 }
 
-impl Cli {
-    pub fn from_args() -> Self {
-        Self::parse()
-    }
-
-    pub fn validate_parameters(&self) -> Result<(), String> {
-        if self.param_f < 0.0
-            || self.param_k < 0.0
-            || self.param_dt <= 0.0
-            || self.param_du <= 0.0
-            || self.param_dv <= 0.0
-        {
-            return Err("Model parameters must be positive".to_string());
-        }
-        Ok(())
-    }
-
+impl Args {
     #[allow(dead_code)]
     pub fn nr_files(&self) -> usize {
         if self.interval == 0 {
