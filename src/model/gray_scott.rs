@@ -8,5 +8,11 @@ pub struct GrayScott {
 }
 
 impl GrayScott {
-    // pub fn new(params: Parameters, sz_tile_x: usize, sz_tile_y: usize) -> Self {}
+    pub fn new(cart_comm: CartesianCommunicator, domain: Domain, params: Parameters) -> Self {
+        Self {
+            cart_comm,
+            domain,
+            params,
+        }
+    }
 }

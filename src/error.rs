@@ -17,10 +17,10 @@ impl Error {
         Error::InvalidParameters(msg.to_string())
     }
 
-    pub fn invalid_domain(np: i32, dims: Vec<i32>, msg: &str) -> Self {
+    pub fn invalid_domain(np: i32, dims: &Vec<i32>, msg: &str) -> Self {
         Error::InvalidDomain {
             np,
-            dims,
+            dims: dims.clone(),
             msg: msg.to_string(),
         }
     }

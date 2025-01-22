@@ -20,22 +20,31 @@ impl GrayScottFactory {
         let cart_comm =
             Self::create_cart_comm(&universe.world(), [args.nr_tiles_y, args.nr_tiles_x])?;
         let domain = Domain::from_cart_comm(&cart_comm, [args.sz_tile_y, args.sz_tile_x]);
-        Ok(GrayScott {
-            cart_comm,
-            domain,
-            params,
-        })
+        Ok(GrayScott::new(cart_comm, domain, params))
     }
 
     fn create_cart_comm(
         comm: &impl Communicator,
         dims: [usize; 2],
     ) -> Result<CartesianCommunicator> {
+        if dims.iter().all(|&d| d != 0) && dims[0] * dims[1] != comm.size() as usize {
+            return Err(Error::invalid_domain(
+                comm.size(),
+                &dims.map(|d| d as i32).to_vec(),
+                format!(
+                    "Number of processes ({}) does not match the number of tiles ({}x{})",
+                    comm.size(),
+                    dims[1],
+                    dims[0],
+                )
+                .as_str(),
+            ));
+        }
         let dims = Self::create_dims(comm.size(), &dims.map(|d| d as i32))?;
         comm.create_cartesian_communicator(&dims[..], &[true; 2], true)
             .ok_or(Error::invalid_domain(
                 comm.size(),
-                dims,
+                &dims,
                 "Failed to create Cartesian communicator",
             ))
     }
