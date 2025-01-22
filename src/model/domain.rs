@@ -52,4 +52,10 @@ impl Domain {
     pub fn total_size(&self) -> usize {
         self.total_nx * self.total_ny
     }
+    pub fn local_shape(&self) -> (usize, usize) {
+        (self.ny, self.nx)
+    }
+    pub fn local_shape_with_halo(&self) -> (usize, usize) {
+        (self.ny_with_halo(), self.nx_with_halo())
+    }
 }
