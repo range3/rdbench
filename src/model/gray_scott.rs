@@ -243,4 +243,49 @@ impl GrayScott {
             coll.wait_all(&mut vec![]);
         });
     }
+
+    pub fn compute_next_state(&mut self) {
+        let (f, k, dt, du, dv) = (
+            self.params.f,
+            self.params.k,
+            self.params.dt,
+            self.params.du,
+            self.params.dv,
+        );
+        let u = unsafe { &*self.u.get() };
+        let v = unsafe { &*self.v.get() };
+        let u_next = unsafe { &mut *self.u_next.get() };
+        let v_next = unsafe { &mut *self.v_next.get() };
+
+        let (ny, nx) = (self.domain.ny, self.domain.nx);
+
+        for y in 1..ny + 1 {
+            for x in 1..nx + 1 {
+                let cur_u = u[[y, x]];
+                let cur_v = v[[y, x]];
+                let laplacian_u =
+                    u[[y - 1, x]] + u[[y, x - 1]] + u[[y, x + 1]] + u[[y + 1, x]] - 4.0 * cur_u;
+                let laplacian_v =
+                    v[[y - 1, x]] + v[[y, x - 1]] + v[[y, x + 1]] + v[[y + 1, x]] - 4.0 * cur_v;
+                let diffusion_u = du * laplacian_u;
+                let diffusion_v = dv * laplacian_v;
+                let uv2 = cur_u * cur_v * cur_v;
+                let react_u = -uv2 + f * (1.0 - cur_u);
+                let react_v = uv2 - (f + k) * cur_v;
+                u_next[[y, x]] = cur_u + dt * (diffusion_u + react_u);
+                v_next[[y, x]] = cur_v + dt * (diffusion_v + react_v);
+            }
+        }
+    }
+
+    pub fn swap_buffers(&mut self) {
+        std::mem::swap(&mut self.u, &mut self.u_next);
+        std::mem::swap(&mut self.v, &mut self.v_next);
+    }
+
+    pub fn step(&mut self) {
+        self.exchange_halos();
+        self.compute_next_state();
+        self.swap_buffers();
+    }
 }
