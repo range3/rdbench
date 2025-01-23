@@ -1,6 +1,6 @@
 use mpi::{topology::CartesianCommunicator, traits::Communicator};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Domain {
     pub total_nx: usize,
     pub total_ny: usize,
@@ -57,5 +57,8 @@ impl Domain {
     }
     pub fn local_shape_with_halo(&self) -> (usize, usize) {
         (self.ny_with_halo(), self.nx_with_halo())
+    }
+    pub fn disp(&self, y: usize, x: usize) -> usize {
+        y * self.nx_with_halo() + x
     }
 }
