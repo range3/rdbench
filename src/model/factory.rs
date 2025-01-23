@@ -1,4 +1,4 @@
-use super::{Domain, GrayScott, Parameters};
+use super::{CenterBlockFiller, Domain, FieldType, GrayScott, Parameters};
 use crate::args::Args;
 use crate::error::{Error, Result};
 use mpi::environment::Universe;
@@ -20,7 +20,9 @@ impl GrayScottFactory {
         let cart_comm =
             Self::create_cart_comm(&universe.world(), [args.nr_tiles_y, args.nr_tiles_x])?;
         let domain = Domain::from_cart_comm(&cart_comm, [args.sz_tile_y, args.sz_tile_x]);
-        Ok(GrayScott::new(cart_comm, domain, params))
+        let mut model = GrayScott::new(cart_comm, domain, params);
+        model.fill(&CenterBlockFiller::new(0.7, 6, 6), FieldType::V);
+        Ok(model)
     }
 
     fn create_cart_comm(

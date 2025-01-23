@@ -1,4 +1,4 @@
-use super::{Domain, Parameters};
+use super::{traits::Filler, Domain, Parameters};
 use mpi::{
     datatype::{MutView, UserDatatype, View},
     // request::{LocalScope, RequestCollection},
@@ -8,6 +8,11 @@ use mpi::{
 };
 use ndarray::{/*prelude::*,*/ Array2};
 use std::{cell::UnsafeCell, ops::Deref};
+
+pub enum FieldType {
+    U,
+    V,
+}
 
 struct Compass<T> {
     north: T,
@@ -107,6 +112,14 @@ impl GrayScott {
     }
     pub fn v(&self) -> &Array2<f64> {
         unsafe { &*self.v.get() }
+    }
+
+    pub fn fill(&mut self, filler: &impl Filler, field: FieldType) {
+        let tile = match field {
+            FieldType::U => unsafe { &mut *self.u.get() },
+            FieldType::V => unsafe { &mut *self.v.get() },
+        };
+        filler.fill(tile, self.domain);
     }
 
     fn create_recv_views<'a, 'b>(
