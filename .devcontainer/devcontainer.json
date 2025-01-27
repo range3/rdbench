@@ -20,6 +20,11 @@
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
+        "serayuzgur.crates",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "JScearcy.rust-doc-viewer",
+        "ritwickdey.LiveServer",
         "GitHub.copilot",
         "GitHub.copilot-chat"
       ],
