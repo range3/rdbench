@@ -9,6 +9,7 @@ use mpi::{
 use ndarray::{/*prelude::*,*/ Array2};
 use std::{cell::UnsafeCell, ops::Deref};
 
+#[derive(Debug, Clone, Copy)]
 pub enum FieldType {
     U,
     V,

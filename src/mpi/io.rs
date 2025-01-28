@@ -200,14 +200,15 @@ impl File {
         }
     }
 
-    pub fn set_view<D>(
+    pub fn set_view<E, D>(
         &self,
         disp: Offset,
-        etype: &D,
+        etype: &E,
         filetype: &D,
         datarep: &str,
     ) -> crate::Result<()>
     where
+        E: Datatype,
         D: Datatype,
     {
         let datarep = std::ffi::CString::new(datarep).unwrap();

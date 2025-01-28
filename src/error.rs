@@ -7,6 +7,7 @@ pub enum Error {
         msg: String,
     },
     InvalidArguments(String),
+    InvalidData(String),
     MpiError {
         code: i32,
         msg: String,
@@ -30,6 +31,10 @@ impl Error {
         Error::InvalidArguments(msg.to_string())
     }
 
+    pub fn invalid_data(msg: &str) -> Self {
+        Error::InvalidData(msg.to_string())
+    }
+
     pub fn mpi_error(code: i32, msg: &str) -> Self {
         Error::MpiError {
             code,
@@ -48,6 +53,7 @@ impl std::fmt::Display for Error {
                 write!(f, "Invalid domain (np={}, dims={:?}): {}", np, dims, msg)
             }
             Error::InvalidArguments(msg) => write!(f, "Invalid arguments: {}", msg),
+            Error::InvalidData(msg) => write!(f, "Invalid data: {}", msg),
             Error::MpiError { code, msg } => write!(f, "MPI error: ({}) {}", code, msg),
         }
     }
@@ -59,6 +65,7 @@ impl std::error::Error for Error {
             Error::InvalidParameters(_) => None,
             Error::InvalidDomain { .. } => None,
             Error::InvalidArguments(_) => None,
+            Error::InvalidData(_) => None,
             Error::MpiError { .. } => None,
         }
     }
