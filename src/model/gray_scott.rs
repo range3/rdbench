@@ -1,4 +1,5 @@
 use super::{traits::Filler, Domain, Parameters};
+use crate::{io::IOStrategy, Result};
 use mpi::{
     datatype::{MutView, UserDatatype, View},
     // request::{LocalScope, RequestCollection},
@@ -6,7 +7,7 @@ use mpi::{
     traits::{Communicator, Destination, Equivalence, Source},
     Count,
 };
-use ndarray::{/*prelude::*,*/ Array2};
+use ndarray::Array2;
 use std::{cell::UnsafeCell, ops::Deref};
 
 #[derive(Debug, Clone, Copy)]
@@ -301,5 +302,18 @@ impl GrayScott {
         self.exchange_halos();
         self.compute_next_state();
         self.swap_buffers();
+    }
+
+    pub fn checkpoint(
+        &self,
+        io_storategy: &dyn IOStrategy,
+        idx: usize,
+        field_type: FieldType,
+    ) -> Result<()> {
+        let field = match field_type {
+            FieldType::U => self.u(),
+            FieldType::V => self.v(),
+        };
+        Ok(io_storategy.write(&self.cart_comm, field, &self.domain, field_type, idx)?)
     }
 }

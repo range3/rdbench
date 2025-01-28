@@ -82,11 +82,11 @@ impl File {
         amode: Mode,
     ) -> crate::Result<Self> {
         let mut handle = MaybeUninit::uninit();
-        let filename = filename.as_ref().to_str().unwrap();
+        let filename = std::ffi::CString::new(filename.as_ref().to_str().unwrap()).unwrap();
         unsafe {
             let ec = ffi::MPI_File_open(
                 comm.as_raw(),
-                filename.as_ptr() as *const i8,
+                filename.as_ptr(),
                 amode.as_raw(),
                 ffi::RSMPI_INFO_NULL,
                 handle.as_mut_ptr(),

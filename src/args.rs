@@ -16,9 +16,9 @@ pub struct Args {
     pub nr_tiles_x: usize,
     #[arg(long, default_value = "0")]
     pub nr_tiles_y: usize,
-    #[arg(long, default_value = "1024")]
+    #[arg(long, default_value = "128")]
     pub sz_tile_x: usize,
-    #[arg(long, default_value = "1024")]
+    #[arg(long, default_value = "128")]
     pub sz_tile_y: usize,
 
     // Simulation settings
