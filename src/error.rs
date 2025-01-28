@@ -6,6 +6,7 @@ pub enum Error {
         dims: Vec<i32>,
         msg: String,
     },
+    InvalidArguments(String),
     MpiError {
         code: i32,
         msg: String,
@@ -25,6 +26,10 @@ impl Error {
         }
     }
 
+    pub fn invalid_arguments(msg: &str) -> Self {
+        Error::InvalidArguments(msg.to_string())
+    }
+
     pub fn mpi_error(code: i32, msg: &str) -> Self {
         Error::MpiError {
             code,
@@ -42,6 +47,7 @@ impl std::fmt::Display for Error {
             Error::InvalidDomain { np, dims, msg } => {
                 write!(f, "Invalid domain (np={}, dims={:?}): {}", np, dims, msg)
             }
+            Error::InvalidArguments(msg) => write!(f, "Invalid arguments: {}", msg),
             Error::MpiError { code, msg } => write!(f, "MPI error: ({}) {}", code, msg),
         }
     }
@@ -52,6 +58,7 @@ impl std::error::Error for Error {
         match self {
             Error::InvalidParameters(_) => None,
             Error::InvalidDomain { .. } => None,
+            Error::InvalidArguments(_) => None,
             Error::MpiError { .. } => None,
         }
     }
