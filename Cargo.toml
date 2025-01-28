@@ -1,6 +1,6 @@
 [package]
 name = "rdbench"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 authors = ["range3 (https://github.com/range3/)"]
 homepage = "https://github.com/range3/rdbench"
 description = "Reaction-diffusion simulation based on Gray-Scott model."
