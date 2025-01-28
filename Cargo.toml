@@ -1,9 +1,12 @@
 [package]
 name = "rdbench"
+license = "MIT or Apache-2.0"
+authors = ["range3 (https://github.com/range3/)"]
+description = "Reaction-diffusion simulation based on Gray-Scott model."
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.5.24", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 mpi = { version = "0.8.0", features = ["user-operations", "derive"] }
-ndarray = "0.16.1"
+ndarray = "0.16"
