@@ -1,3 +1,5 @@
 /target
 *repomix-output*
 /out
+/.venv
+__pycache__
