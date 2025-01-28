@@ -20,7 +20,7 @@
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
-        "serayuzgur.crates",
+        "fill-labs.dependi",
         "tamasfe.even-better-toml",
         "vadimcn.vscode-lldb",
         "JScearcy.rust-doc-viewer",
