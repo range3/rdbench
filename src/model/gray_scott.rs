@@ -1,5 +1,8 @@
 use super::{traits::Filler, Domain, Parameters};
-use crate::{io::IOStrategy, Result};
+use crate::{
+    io::{IOStrategy, IOStrategyEnum},
+    Result,
+};
 use mpi::{
     datatype::{MutView, UserDatatype, View},
     // request::{LocalScope, RequestCollection},
@@ -306,7 +309,7 @@ impl GrayScott {
 
     pub fn checkpoint(
         &self,
-        io_storategy: &dyn IOStrategy,
+        io_storategy: &IOStrategyEnum,
         idx: usize,
         field_type: FieldType,
     ) -> Result<()> {

@@ -9,7 +9,6 @@ use crate::{
 };
 use mpi::{
     datatype::{UserDatatype, View},
-    topology::CartesianCommunicator,
     traits::{Communicator, Equivalence},
 };
 use ndarray::Array2;
@@ -21,15 +20,36 @@ fn create_tile_type(domain: &Domain) -> Result<UserDatatype> {
     datatype::create_subarray(&sizes, &subsizes, &starts, &f64::equivalent_datatype())
 }
 
+pub enum IOStrategyEnum {
+    Canonical(CanonicalIO),
+    Log(LogIO),
+}
+
 pub trait IOStrategy {
-    fn write(
+    fn write<C: Communicator>(
         &self,
-        comm: &CartesianCommunicator,
+        comm: &C,
         data: &Array2<f64>,
         domain: &Domain,
         field_type: FieldType,
         idx: usize,
     ) -> Result<()>;
+}
+
+impl IOStrategy for IOStrategyEnum {
+    fn write<C: Communicator>(
+        &self,
+        comm: &C,
+        data: &Array2<f64>,
+        domain: &Domain,
+        field_type: FieldType,
+        idx: usize,
+    ) -> Result<()> {
+        match self {
+            Self::Canonical(strategy) => strategy.write(comm, data, domain, field_type, idx),
+            Self::Log(strategy) => strategy.write(comm, data, domain, field_type, idx),
+        }
+    }
 }
 
 pub trait FileIOStrategy: IOStrategy {
@@ -79,9 +99,9 @@ impl CanonicalIO {
 impl FileIOStrategy for CanonicalIO {}
 
 impl IOStrategy for CanonicalIO {
-    fn write(
+    fn write<C: Communicator>(
         &self,
-        comm: &CartesianCommunicator,
+        comm: &C,
         data: &Array2<f64>,
         domain: &Domain,
         field_type: FieldType,
@@ -146,9 +166,9 @@ impl LogIO {
 impl FileIOStrategy for LogIO {}
 
 impl IOStrategy for LogIO {
-    fn write(
+    fn write<C: Communicator>(
         &self,
-        comm: &CartesianCommunicator,
+        comm: &C,
         data: &Array2<f64>,
         domain: &Domain,
         field_type: FieldType,
@@ -187,16 +207,16 @@ impl IOStrategy for LogIO {
     }
 }
 
-pub fn create_io_strategy(args: &Args, domain: &Domain) -> Result<Box<dyn IOStrategy>> {
+pub fn create_io_strategy(args: &Args, domain: &Domain) -> Result<IOStrategyEnum> {
     match args.file_layout {
         FileLayout::Canonical => {
             let strategy =
                 CanonicalIO::new(args.output.clone(), args.collective, !args.nosync, domain)?;
-            Ok(Box::new(strategy))
+            Ok(IOStrategyEnum::Canonical(strategy))
         }
         FileLayout::Log => {
             let strategy = LogIO::new(args.output.clone(), args.collective, !args.nosync, domain)?;
-            Ok(Box::new(strategy))
+            Ok(IOStrategyEnum::Log(strategy))
         }
     }
 }

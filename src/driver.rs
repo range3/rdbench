@@ -2,14 +2,14 @@ use mpi::traits::Communicator;
 
 use crate::{
     args::{Args, IoField},
-    io::{self, IOStrategy},
+    io::{self, IOStrategyEnum},
     model::{FieldType, GrayScott},
     Result,
 };
 
 pub struct Driver<'a> {
     model: GrayScott,
-    io_strategy: Box<dyn IOStrategy>,
+    io_strategy: IOStrategyEnum,
     args: &'a Args,
 }
 
@@ -50,11 +50,11 @@ impl<'a> Driver<'a> {
 
         if self.args.io_field.should_io_u() {
             self.model
-                .checkpoint(&*self.io_strategy, idx, FieldType::U)?;
+                .checkpoint(&self.io_strategy, idx, FieldType::U)?;
         }
         if self.args.io_field.should_io_v() {
             self.model
-                .checkpoint(&*self.io_strategy, idx, FieldType::V)?;
+                .checkpoint(&self.io_strategy, idx, FieldType::V)?;
         }
 
         if self.args.verbose && comm.rank() == 0 {
