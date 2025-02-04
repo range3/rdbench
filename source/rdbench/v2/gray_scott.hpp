@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstddef>
-// #include <execution>
-// #include <ranges>
+#ifdef RDBENCH_USE_STDPAR
+#include <execution>
+#include <ranges>
+#endif
 #include <vector>
 
 #include <cxxmpi/cart_comm.hpp>
@@ -84,8 +86,11 @@ class gray_scott {
 
   void step() {
     exchange_halos();
-    // compute_next_state_stdpar();
+#ifdef RDBENCH_USE_STDPAR
+    compute_next_state_stdpar();
+#else
     compute_next_state();
+#endif
     swap_tiles();
   }
 
@@ -222,7 +227,7 @@ class gray_scott {
     }
   }
 
-#ifdef __cpp_lib_ranges_cartesian_product
+#ifdef RDBENCH_USE_STDPAR
   void compute_next_state_stdpar() {
     const auto nx = static_cast<int>(domain_.nx);
     const auto ny = static_cast<int>(domain_.ny);
@@ -251,7 +256,7 @@ class gray_scott {
         std::views::iota(1, static_cast<int>(ny + 1)),
         std::views::iota(1, static_cast<int>(nx + 1)));
 
-    std::for_each(std::execution::par, indices.begin(), indices.end(),
+    std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
                   [kernel](auto idx) {
                     auto [y, x] = idx;
                     kernel(y, x);

@@ -12,6 +12,12 @@ project(
 
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
+include(cmake/stdpar.cmake)
+
+# ---- Options ----
+option(RDBENCH_USE_GPU "Enable GPU offloading with NVC++" OFF)
+option(RDBENCH_USE_MULTICORE "Enable multicore execution" OFF)
+rdbench_setup_stdpar_options()
 
 # ---- Declare library ----
 
@@ -23,8 +29,13 @@ target_include_directories(
     "\$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/source>"
 )
 
-target_compile_features(rdbench_lib INTERFACE cxx_std_20)
 target_compile_definitions(rdbench_lib INTERFACE MDSPAN_USE_PAREN_OPERATOR=1)
+if(RDBENCH_USE_STDPAR)
+  target_compile_features(rdbench_lib INTERFACE cxx_std_23)
+else()
+  target_compile_features(rdbench_lib INTERFACE cxx_std_20)
+endif()
+rdbench_configure_parallel_execution(rdbench_lib)
 
 find_package(fmt REQUIRED)
 find_package(cxxmpi REQUIRED)
@@ -32,8 +43,6 @@ find_package(cxxopts REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(mdspan REQUIRED)
 find_package(MPI REQUIRED)
-# find_package(TBB REQUIRED)
-# find_package(ParallelSTL CONFIG REQUIRED)
 target_link_libraries(rdbench_lib
   INTERFACE
     MPI::MPI_CXX

@@ -19,7 +19,6 @@ target_link_libraries(
     rdbench_lib
     Catch2::Catch2WithMain
 )
-target_compile_features(rdbench_test PRIVATE cxx_std_20)
 
 catch_discover_tests(rdbench_test)
 

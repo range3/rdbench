@@ -1,0 +1,39 @@
+macro(rdbench_setup_stdpar_options)
+  if(RDBENCH_USE_GPU AND RDBENCH_USE_MULTICORE)
+    message(FATAL_ERROR "RDBENCH_USE_GPU and RDBENCH_USE_MULTICORE are mutually exclusive")
+  endif()
+
+  set(RDBENCH_USE_STDPAR OFF)
+  if(RDBENCH_USE_GPU OR RDBENCH_USE_MULTICORE)
+    set(RDBENCH_USE_STDPAR ON)
+  endif()
+endmacro()
+
+function(rdbench_configure_parallel_execution target)
+  if(NOT RDBENCH_USE_STDPAR)
+    return()
+  endif()
+
+
+
+  target_compile_definitions(${target} PUBLIC RDBENCH_USE_STDPAR)
+  
+  if(RDBENCH_USE_GPU)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
+      message(FATAL_ERROR "GPU support requires NVHPC compiler")
+    endif()
+    target_compile_options(${target} PRIVATE -stdpar=gpu)
+    target_compile_definitions(${target} PUBLIC RDBENCH_USE_GPU)
+    
+  elseif(RDBENCH_USE_MULTICORE)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      find_package(TBB REQUIRED)
+      target_link_libraries(${target} PUBLIC TBB::tbb)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
+      target_compile_options(${target} PRIVATE -stdpar=multicore)
+    else()
+      message(WARNING "Multicore support not configured for current compiler")
+    endif()
+    target_compile_definitions(${target} PUBLIC RDBENCH_USE_MULTICORE)
+  endif()
+endfunction()
