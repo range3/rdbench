@@ -6,9 +6,11 @@
 #include <type_traits>
 
 #include <catch2/catch_test_macros.hpp>
-#include <cxxabi.h>
 
 #include "prof/event.hpp"
+
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(__NVCOMPILER)
+#include <cxxabi.h>
 
 template <typename T>
 auto type_name() -> std::string {
@@ -18,6 +20,13 @@ auto type_name() -> std::string {
       std::free);
   return status == 0 ? result.get() : typeid(T).name();
 }
+
+#else
+template <typename T>
+auto type_name() -> std::string {
+  return typeid(T).name();
+}
+#endif
 
 TEST_CASE("event basic operation", "[event]") {
   SECTION("event name") {
