@@ -17,6 +17,7 @@ include(cmake/stdpar.cmake)
 # ---- Options ----
 option(RDBENCH_USE_GPU "Enable GPU offloading with NVC++" OFF)
 option(RDBENCH_USE_MULTICORE "Enable multicore execution" OFF)
+option(RDBENCH_USE_NVTX "Enable NVIDIA Tools Extension (NVTX) profiling" OFF)
 rdbench_setup_stdpar_options()
 
 # ---- Declare library ----
@@ -50,6 +51,24 @@ target_link_libraries(rdbench_lib
     cxxmpi::cxxmpi
     std::mdspan
 )
+
+# NVTX support
+if(RDBENCH_USE_NVTX)
+    find_package(CUDAToolkit REQUIRED)
+    target_link_libraries(rdbench_lib
+        INTERFACE
+        CUDA::nvtx3
+    )
+    target_compile_definitions(rdbench_lib
+        INTERFACE
+        RDBENCH_USE_NVTX
+    )
+else()
+    target_compile_definitions(rdbench_lib
+        INTERFACE
+        NVTX_DISABLE
+    )
+endif()
 
 # ---- Declare executable ----
 

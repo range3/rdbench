@@ -16,6 +16,7 @@
 #include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/io.hpp"
 #include "rdbench/v2/tile_filler.hpp"
+#include "rdbench/v2/utils/nvtx.hpp"
 
 namespace rdbench::v2 {
 
@@ -85,13 +86,23 @@ class gray_scott {
   }
 
   void step() {
-    exchange_halos();
+    RDBENCH_NVTX_FUNC_RANGE();
+    {
+      RDBENCH_NVTX_RANGE("exchange_halos");
+      exchange_halos();
+    }
+    {
+      RDBENCH_NVTX_RANGE("compute_next_state");
 #ifdef RDBENCH_USE_STDPAR
-    compute_next_state_stdpar();
+      compute_next_state_stdpar();
 #else
-    compute_next_state();
+      compute_next_state();
 #endif
-    swap_tiles();
+    }
+    {
+      RDBENCH_NVTX_RANGE("swap_tiles");
+      swap_tiles();
+    }
   }
 
   void ckpt(const io_strategy& io, size_t idx, data_type type) const {
