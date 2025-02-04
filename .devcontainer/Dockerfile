@@ -24,6 +24,7 @@ RUN apt-get update \
     python3-venv \
     python3-jinja2 \
     python3-pygments \
+    cmake-curses-gui \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
