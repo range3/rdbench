@@ -12,12 +12,16 @@
   },
   "include": [
     "source/**/*.{cpp,hpp}",
-    "test/**/*_test.cpp"
+    "CMakePresets.json",
+    "**/CMakeLists.txt"
   ],
   "ignore": {
     "useGitignore": true,
     "useDefaultPatterns": true,
-    "customPatterns": []
+    "customPatterns": [
+      "source/cxxraii/**/*",
+      "source/prof/**/*"
+    ]
   },
   "security": {
     "enableSecurityCheck": true
