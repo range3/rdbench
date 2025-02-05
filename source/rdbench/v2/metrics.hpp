@@ -87,6 +87,15 @@ class metrics_handler {
   }
 
   [[nodiscard]]
+  auto total_comp_bytes() const -> size_t {
+    // 2 for u and v, 2 for reading current state and writing next state
+    // Although there are technically 5 reads and 1 write per grid point,
+    // stencil access patterns typically hit the cache and are treated as a
+    // single read
+    return file_size_bytes() * 2ULL * 2ULL * opts_.get().steps;
+  }
+
+  [[nodiscard]]
   auto create_timestamp_json() const -> nlohmann::ordered_json {
     auto j = nlohmann::ordered_json{};
     j["startTime"] = start_time_;
@@ -108,6 +117,14 @@ class metrics_handler {
     auto bw = static_cast<double>(io_bytes) / io_time;
     result_json["writeBandwidth"] = bw;
     result_json["writeBandwidthHuman"] = utils::to_human(bw) + "iB/s";
+
+    auto comp_time = prof_result["CompNextStateTotalTime"].get<double>();
+    auto comp_bytes = this->total_comp_bytes();
+    auto mem_bw = static_cast<double>(comp_bytes) / comp_time;
+    result_json["memoryAccessByte"] = comp_bytes;
+    result_json["memoryAccessByteHuman"] = utils::to_human(comp_bytes) + "iB";
+    result_json["memoryBandwidth"] = mem_bw;
+    result_json["memoryBandwidthHuman"] = utils::to_human(mem_bw) + "iB/s";
 
     return result_json;
   }

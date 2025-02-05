@@ -13,8 +13,10 @@
 
 #include <experimental/mdspan>
 
+#include "prof/event.hpp"
 #include "rdbench/v2/domain.hpp"
 #include "rdbench/v2/io.hpp"
+#include "rdbench/v2/profiler.hpp"
 #include "rdbench/v2/tile_filler.hpp"
 #include "rdbench/v2/utils/nvtx.hpp"
 
@@ -105,16 +107,15 @@ class gray_scott {
     RDBENCH_NVTX_FUNC_RANGE();
     {
       RDBENCH_NVTX_RANGE("exchange_halos");
+      auto ev1 = prof::scoped_event<profiler::exchange_halos>{};
       exchange_halos();
     }
     {
       RDBENCH_NVTX_RANGE("compute_next_state");
+      auto ev2 = prof::scoped_event<profiler::compute_next_state>{};
       compute_next_state();
     }
-    {
-      RDBENCH_NVTX_RANGE("swap_tiles");
-      swap_tiles();
-    }
+    swap_tiles();
   }
 
   void ckpt(const io_strategy& io, size_t idx, data_type type) const {
@@ -213,18 +214,22 @@ class gray_scott {
 
       // Laplacian
       const auto laplacian_u =
-          u(y, x - 1) + u(y, x + 1) + u(y - 1, x) + u(y + 1, x) - 4 * current_u;
+          u(y - 1, x) + u(y, x - 1) + u(y, x + 1) + u(y + 1, x) - 4 * current_u;
       const auto laplacian_v =
-          v(y, x - 1) + v(y, x + 1) + v(y - 1, x) + v(y + 1, x) - 4 * current_v;
+          v(y - 1, x) + v(y, x - 1) + v(y, x + 1) + v(y + 1, x) - 4 * current_v;
+
+      // Diffusion
+      const auto diffusion_u = du * (laplacian_u);
+      const auto diffusion_v = dv * (laplacian_v);
 
       // Reaction
       const auto uv2 = current_u * current_v * current_v;
-      const auto u_react = -uv2 + f * (1 - current_u);
-      const auto v_react = uv2 - (f + k) * current_v;
+      const auto react_u = -uv2 + f * (1 - current_u);
+      const auto react_v = uv2 - (f + k) * current_v;
 
       // Update
-      u_next(y, x) = current_u + dt * (du * laplacian_u + u_react);
-      v_next(y, x) = current_v + dt * (dv * laplacian_v + v_react);
+      u_next(y, x) = current_u + dt * (diffusion_u + react_u);
+      v_next(y, x) = current_v + dt * (diffusion_v + react_v);
     }
   };
 
