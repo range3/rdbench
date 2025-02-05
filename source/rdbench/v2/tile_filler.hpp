@@ -1,6 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#ifdef RDBENCH_USE_STDPAR
+#include <execution>
+#include <ranges>
+#endif
 
 #include <experimental/mdspan>
 
@@ -37,6 +41,20 @@ class center_block_filler : public tile_filler {
     const auto block_start_y = domain.total_ny / 2 - block_ny / 2;
     const auto block_end_x = block_start_x + block_ny_;
     const auto block_end_y = block_start_y + block_ny_;
+#ifdef RDBENCH_USE_STDPAR
+    auto indices = std::views::cartesian_product(
+        std::views::iota(0UL, domain.ny), std::views::iota(0UL, domain.nx));
+
+    std::for_each(
+        std::execution::par_unseq, indices.begin(), indices.end(),
+        [=, value = value_](auto idx) {
+          auto [y, x] = idx;
+          if (block_start_x <= start_x + x && start_x + x < block_end_x
+              && block_start_y <= start_y + y && start_y + y < block_end_y) {
+            tile(y + 1, x + 1) = value;
+          }
+        });
+#else
 
     for (size_t y = 0; y < domain.ny; ++y) {
       for (size_t x = 0; x < domain.nx; ++x) {
@@ -46,6 +64,7 @@ class center_block_filler : public tile_filler {
         }
       }
     }
+#endif
   }
 
  private:
@@ -59,7 +78,12 @@ class constant_filler : public tile_filler {
   explicit constant_filler(double value) : value_{value} {}
 
   void apply(mdspan_2d tile, const domain_type& /*domain*/) const override {
-    std::fill(tile.data_handle(), tile.data_handle() + tile.size(), value_);
+#ifdef RDBENCH_USE_STDPAR
+    std::fill_n(std::execution::par_unseq, tile.data_handle(), tile.size(),
+                value_);
+#else
+    std::fill_n(tile.data_handle(), tile.size(), value_);
+#endif
   }
 
  private:

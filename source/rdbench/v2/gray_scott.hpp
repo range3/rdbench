@@ -93,11 +93,7 @@ class gray_scott {
     }
     {
       RDBENCH_NVTX_RANGE("compute_next_state");
-#ifdef RDBENCH_USE_STDPAR
-      compute_next_state_stdpar();
-#else
       compute_next_state();
-#endif
     }
     {
       RDBENCH_NVTX_RANGE("swap_tiles");
@@ -195,7 +191,7 @@ class gray_scott {
     double du, dv, f, k, dt;
     mdspan_2d u, v, u_next, v_next;
 
-    void operator()(int y, int x) const {
+    void operator()(size_t y, size_t x) const {
       const auto current_u = u(y, x);
       const auto current_v = v(y, x);
 
@@ -217,8 +213,8 @@ class gray_scott {
   };
 
   void compute_next_state() {
-    const auto nx = static_cast<int>(domain_.nx);
-    const auto ny = static_cast<int>(domain_.ny);
+    const auto nx = domain_.nx;
+    const auto ny = domain_.ny;
     const auto kernel = compute_kernel{
         .du = params_.du,
         .dv = params_.dv,
@@ -230,50 +226,43 @@ class gray_scott {
         .u_next = u_next_,
         .v_next = v_next_,
     };
-
-    for (int y = 1; y < ny + 1; ++y) {
-      for (int x = 1; x < nx + 1; ++x) {
-        kernel(y, x);
-      }
-    }
-  }
 
 #ifdef RDBENCH_USE_STDPAR
-  void compute_next_state_stdpar() {
-    const auto nx = static_cast<int>(domain_.nx);
-    const auto ny = static_cast<int>(domain_.ny);
-    const auto kernel = compute_kernel{
-        .du = params_.du,
-        .dv = params_.dv,
-        .f = params_.f,
-        .k = params_.k,
-        .dt = params_.dt,
-        .u = u_,
-        .v = v_,
-        .u_next = u_next_,
-        .v_next = v_next_,
-    };
-
     // work around for std::views::cartesian_product
-    // std::vector<std::pair<int, int>> indices;
-    // indices.reserve(static_cast<size_t>(nx * ny));
-    // for (auto y : std::views::iota(1, static_cast<int>(ny + 1))) {
-    //   for (auto x : std::views::iota(1, static_cast<int>(nx + 1))) {
+    // std::vector<std::pair<size_t, size_t>> indices;
+    // indices.reserve(nx * ny);
+    // for (auto y : std::views::iota(1UL, ny + 1)) {
+    //   for (auto x : std::views::iota(1UL, nx + 1)) {
     //     indices.emplace_back(y, x);
     //   }
     // }
 
-    auto indices = std::views::cartesian_product(
-        std::views::iota(1, static_cast<int>(ny + 1)),
-        std::views::iota(1, static_cast<int>(nx + 1)));
+    // auto indices = std::views::cartesian_product(
+    //     std::views::iota(1UL, ny + 1),
+    //     std::views::iota(1UL, nx + 1));
 
+    // std::for_each(std::execution::par_unseq, indices.begin(),
+    // indices.end(),
+    //               [kernel](auto idx) {
+    //                 auto [y, x] = idx;
+    //                 kernel(y, x);
+    //               });
+
+    auto indices = std::views::iota(0UL, nx * ny);
     std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
-                  [kernel](auto idx) {
-                    auto [y, x] = idx;
-                    kernel(y, x);
+                  [kernel, nx](auto idx) {
+                    const auto y = idx / nx;
+                    const auto x = idx % nx;
+                    kernel(y + 1, x + 1);
                   });
-  }
+#else
+    for (size_t y = 1; y < ny + 1; ++y) {
+      for (size_t x = 1; x < nx + 1; ++x) {
+        kernel(y, x);
+      }
+    }
 #endif
+  }
 
   void swap_tiles() {
     std::swap(u_, u_next_);
