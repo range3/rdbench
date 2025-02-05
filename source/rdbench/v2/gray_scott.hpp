@@ -41,10 +41,10 @@ class gray_scott {
 
   cxxmpi::dtype halo_type_;
 
-  std::vector<double> u_buf_1_;  // activator
-  std::vector<double> v_buf_1_;  // inhibitor
-  std::vector<double> u_buf_2_;
-  std::vector<double> v_buf_2_;
+  std::unique_ptr<double[]> u_buf_1_;  // NOLINT // activator
+  std::unique_ptr<double[]> v_buf_1_;  // NOLINT // inhibitor
+  std::unique_ptr<double[]> u_buf_2_;  // NOLINT
+  std::unique_ptr<double[]> v_buf_2_;  // NOLINT
 
   extent_2d extent_;
   mdspan_2d u_;
@@ -62,15 +62,31 @@ class gray_scott {
         domain_{create_domain(comm_, sz_tile_x, sz_tile_y)},
         neighbors_{comm_.neighbors_2d()},
         halo_type_{create_halo_type()},
-        u_buf_1_(domain_.size_with_halo(), 0.0),
-        v_buf_1_(domain_.size_with_halo(), 0.0),
-        u_buf_2_(domain_.size_with_halo()),
-        v_buf_2_(domain_.size_with_halo()),
+        u_buf_1_{new double[domain_.size_with_halo()]},
+        v_buf_1_{new double[domain_.size_with_halo()]},
+        u_buf_2_{new double[domain_.size_with_halo()]},
+        v_buf_2_{new double[domain_.size_with_halo()]},
         extent_{domain_.ny_with_halo(), domain_.nx_with_halo()},
-        u_{u_buf_1_.data(), extent_},
-        v_{v_buf_1_.data(), extent_},
-        u_next_{u_buf_2_.data(), extent_},
-        v_next_{v_buf_2_.data(), extent_} {}
+        u_{u_buf_1_.get(), extent_},
+        v_{v_buf_1_.get(), extent_},
+        u_next_{u_buf_2_.get(), extent_},
+        v_next_{v_buf_2_.get(), extent_} {
+#ifdef RDBENCH_USE_STDPAR
+    std::fill_n(std::execution::par_unseq, u_buf_1_.get(),
+                domain_.size_with_halo(), 0.0);
+    std::fill_n(std::execution::par_unseq, v_buf_1_.get(),
+                domain_.size_with_halo(), 0.0);
+    std::fill_n(std::execution::par_unseq, u_buf_2_.get(),
+                domain_.size_with_halo(), 0.0);
+    std::fill_n(std::execution::par_unseq, v_buf_2_.get(),
+                domain_.size_with_halo(), 0.0);
+#else
+    std::fill_n(u_buf_1_.get(), domain_.size_with_halo(), 0.0);
+    std::fill_n(v_buf_1_.get(), domain_.size_with_halo(), 0.0);
+    std::fill_n(u_buf_2_.get(), domain_.size_with_halo(), 0.0);
+    std::fill_n(v_buf_2_.get(), domain_.size_with_halo(), 0.0);
+#endif
+  }
 
   auto comm() const -> const cxxmpi::cart_comm& { return comm_; }
   auto domain() const -> domain_type { return domain_; }
