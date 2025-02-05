@@ -92,7 +92,19 @@ class metrics_handler {
     // Although there are technically 5 reads and 1 write per grid point,
     // stencil access patterns typically hit the cache and are treated as a
     // single read
-    return file_size_bytes() * 2ULL * 2ULL * opts_.get().steps;
+    const auto tile_read_with_halo =
+        ((opts_.get().sz_tile_x + 2) * (opts_.get().sz_tile_y + 2)
+         - 4ULL)  // 4 for corners
+        * sizeof(double);
+
+    const auto dims = comm_.dims();
+    const auto total_tile_read_with_halo = tile_read_with_halo
+                                         * static_cast<size_t>(dims[0])
+                                         * static_cast<size_t>(dims[1]);
+    const auto read_size =
+        total_tile_read_with_halo * 2ULL;              // 2ULL for u and v
+    const auto write_size = file_size_bytes() * 2ULL;  // 2ULL for u and v
+    return read_size + write_size;
   }
 
   [[nodiscard]]
