@@ -13,7 +13,8 @@
   "include": [
     "source/**/*.{cpp,hpp}",
     "CMakePresets.json",
-    "**/CMakeLists.txt"
+    "**/CMakeLists.txt",
+    "cmake/**/*"
   ],
   "ignore": {
     "useGitignore": true,
