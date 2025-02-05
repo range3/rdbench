@@ -77,8 +77,6 @@ add_executable(rdbench::exe ALIAS rdbench_exe)
 
 set_property(TARGET rdbench_exe PROPERTY OUTPUT_NAME rdbench)
 
-target_compile_features(rdbench_exe PRIVATE cxx_std_20)
-
 target_link_libraries(rdbench_exe
   PRIVATE
     rdbench_lib
