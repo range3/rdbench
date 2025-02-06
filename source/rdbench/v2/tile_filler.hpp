@@ -64,7 +64,7 @@ class center_block_filler : public tile_filler {
           const auto x = idx % nx;
           if (block_start_x <= start_x + x && start_x + x < block_end_x
               && block_start_y <= start_y + y && start_y + y < block_end_y) {
-            tile(y + 1, x + 1) = value_;
+            tile(y + 1, x + 1) = value;
           }
         });
 #endif
