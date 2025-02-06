@@ -16,6 +16,8 @@ include(cmake/stdpar.cmake)
 
 # ---- Options ----
 option(RDBENCH_USE_GPU "Enable GPU offloading with NVC++" OFF)
+option(RDBENCH_USE_UNIFIED_MEMORY "Enable unified memory for GPU execution" OFF)
+option(RDBENCH_USE_UNIFIED_MEMORY_NO_MANAGED_ALLOC "Enable to force non-managed allocation for unified memory" OFF)
 option(RDBENCH_USE_MULTICORE "Enable multicore execution" OFF)
 option(RDBENCH_USE_NVTX "Enable NVIDIA Tools Extension (NVTX) profiling" OFF)
 rdbench_setup_stdpar_options()
