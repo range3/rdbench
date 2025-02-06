@@ -113,6 +113,7 @@
       "cacheVariables": {
         "RDBENCH_USE_GPU": "ON",
         "RDBENCH_USE_MULTICORE": "OFF",
+        "RDBENCH_USE_UNIFIED_MEMORY_NO_MANAGED_ALLOC": "ON",
         "CMAKE_CXX_STANDARD": "23"
       }
     },
@@ -122,6 +123,7 @@
       "cacheVariables": {
         "RDBENCH_USE_GPU": "OFF",
         "RDBENCH_USE_MULTICORE": "ON",
+        "RDBENCH_USE_UNIFIED_MEMORY_NO_MANAGED_ALLOC": "ON",
         "CMAKE_CXX_STANDARD": "23"
       }
     },
