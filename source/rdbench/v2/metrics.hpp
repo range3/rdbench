@@ -104,7 +104,7 @@ class metrics_handler {
     const auto read_size =
         total_tile_read_with_halo * 2ULL;              // 2ULL for u and v
     const auto write_size = file_size_bytes() * 2ULL;  // 2ULL for u and v
-    return read_size + write_size;
+    return (read_size + write_size) * opts_.get().steps;
   }
 
   [[nodiscard]]
