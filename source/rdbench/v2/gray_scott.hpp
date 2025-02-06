@@ -249,26 +249,15 @@ class gray_scott {
     };
 
 #ifdef RDBENCH_USE_STDPAR
-    // work around for std::views::cartesian_product
-    // std::vector<std::pair<size_t, size_t>> indices;
-    // indices.reserve(nx * ny);
-    // for (auto y : std::views::iota(1UL, ny + 1)) {
-    //   for (auto x : std::views::iota(1UL, nx + 1)) {
-    //     indices.emplace_back(y, x);
-    //   }
-    // }
-
-    // auto indices = std::views::cartesian_product(
-    //     std::views::iota(1UL, ny + 1),
-    //     std::views::iota(1UL, nx + 1));
-
-    // std::for_each(std::execution::par_unseq, indices.begin(),
-    // indices.end(),
-    //               [kernel](auto idx) {
-    //                 auto [y, x] = idx;
-    //                 kernel(y, x);
-    //               });
-
+#ifdef RDBENCH_USE_CARTESIAN_PRODUCT
+    auto indices = std::views::cartesian_product(std::views::iota(1UL, ny + 1),
+                                                 std::views::iota(1UL, nx + 1));
+    std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
+                  [kernel](auto idx) {
+                    auto [y, x] = idx;
+                    kernel(y, x);
+                  });
+#else
     auto indices = std::views::iota(0UL, nx * ny);
     std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
                   [kernel, nx](auto idx) {
@@ -276,6 +265,7 @@ class gray_scott {
                     const auto x = idx % nx;
                     kernel(y + 1, x + 1);
                   });
+#endif
 #else
     for (size_t y = 1; y < ny + 1; ++y) {
       for (size_t x = 1; x < nx + 1; ++x) {

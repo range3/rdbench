@@ -15,6 +15,10 @@ function(rdbench_configure_parallel_execution target)
   endif()
 
   target_compile_definitions(${target} INTERFACE RDBENCH_USE_STDPAR)
+
+  if (RDBENCH_USE_CARTESIAN_PRODUCT)
+    target_compile_definitions(${target} INTERFACE RDBENCH_USE_CARTESIAN_PRODUCT)
+  endif()
   
   if(RDBENCH_USE_GPU)
     if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")

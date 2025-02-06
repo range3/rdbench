@@ -42,6 +42,7 @@ class center_block_filler : public tile_filler {
     const auto block_end_x = block_start_x + block_ny_;
     const auto block_end_y = block_start_y + block_ny_;
 #ifdef RDBENCH_USE_STDPAR
+#ifdef RDBENCH_USE_CARTESIAN_PRODUCT
     auto indices = std::views::cartesian_product(
         std::views::iota(0UL, domain.ny), std::views::iota(0UL, domain.nx));
 
@@ -54,6 +55,19 @@ class center_block_filler : public tile_filler {
             tile(y + 1, x + 1) = value;
           }
         });
+#else
+    auto indices = std::views::iota(0UL, domain.nx * domain.ny);
+    std::for_each(
+        std::execution::par_unseq, indices.begin(), indices.end(),
+        [=, value = value_, nx = domain.nx](auto idx) {
+          const auto y = idx / nx;
+          const auto x = idx % nx;
+          if (block_start_x <= start_x + x && start_x + x < block_end_x
+              && block_start_y <= start_y + y && start_y + y < block_end_y) {
+            tile(y + 1, x + 1) = value_;
+          }
+        });
+#endif
 #else
 
     for (size_t y = 0; y < domain.ny; ++y) {
