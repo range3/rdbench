@@ -109,11 +109,13 @@ class gray_scott {
       RDBENCH_NVTX_RANGE("exchange_halos");
       auto ev1 = prof::scoped_event<profiler::exchange_halos>{};
       exchange_halos();
+      comm_.barrier();
     }
     {
       RDBENCH_NVTX_RANGE("compute_next_state");
       auto ev2 = prof::scoped_event<profiler::compute_next_state>{};
       compute_next_state();
+      comm_.barrier();
     }
     swap_tiles();
   }
