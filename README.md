@@ -5,11 +5,7 @@ It simulates the time evolution of a 2D reaction-diffusion system based on the G
 Furthermore, if a compiler supports ISO C++ `std::execution::par_unseq`, rdbench enables hybrid MPI computation by combining thread-level parallelism with MPI.
 For environments where the NVIDIA HPC SDK (nvc++) is available, it also supports offloading computations to GPUs.
 
-
-
-
-
-![](https://raw.githubusercontent.com/range3/rdbench/master/rdbench-viz/viz.gif)
+![](https://raw.githubusercontent.com/range3/rdbench/v2/viz/viz.gif)
 
 # Building
 ## Requirements
@@ -138,4 +134,4 @@ build/rdbench \
 ```
 
 # Other demos
-![](https://raw.githubusercontent.com/range3/rdbench/master/rdbench-viz/viz2.gif)
+![](https://raw.githubusercontent.com/range3/rdbench/v2/viz/viz2.gif)
