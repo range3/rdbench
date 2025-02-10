@@ -10,6 +10,7 @@
 #include "rdbench/v2/io.hpp"
 #include "rdbench/v2/options.hpp"
 #include "rdbench/v2/profiler.hpp"
+#include "rdbench/v2/utils/nvtx.hpp"
 
 namespace rdbench::v2 {
 
@@ -21,6 +22,7 @@ class gray_scott_driver {
         io_{create_io_strategy(opts, model_->domain())} {}
 
   void run() {
+    RDBENCH_NVTX_FUNC_RANGE();
     auto recorder = prof::recorder::instance().start();
     auto ckpt_idx = size_t{0};
     auto const total_steps = opt().steps;
